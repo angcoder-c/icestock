@@ -1,0 +1,67 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: icestock-db
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: ${VITE_DB_USER}
+      POSTGRES_PASSWORD: ${VITE_DB_PASSWORD}
+      POSTGRES_DB: ${VITE_DB_NAME}
+
+    ports:
+      - "5433:5432"
+
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${VITE_DB_USER} -d ${VITE_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+    networks:
+      - app_network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: icestock
+
+    restart: unless-stopped
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    ports:
+      - "3000:3000"
+
+    environment:
+      VITE_NODE_ENV: development
+      VITE_DB_USER: ${VITE_DB_USER}
+      VITE_DB_PASSWORD: ${VITE_DB_PASSWORD}
+      VITE_DB_NAME: ${VITE_DB_NAME}
+      VITE_DATABASE_URL: postgres://${VITE_DB_USER}:${VITE_DB_PASSWORD}@db:5432/${VITE_DB_NAME}
+      PORT: 3000
+
+    volumes:
+      - .:/app
+      - /app/node_modules
+    working_dir: /app
+    command: npm run dev -- --host
+    networks:
+      - app_network
+
+volumes:
+  pg_data:
+
+networks:
+  app_network:
+    driver: bridge
