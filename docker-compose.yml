@@ -47,8 +47,9 @@ services:
       VITE_NODE_ENV: development
       VITE_DB_USER: ${VITE_DB_USER}
       VITE_DB_PASSWORD: ${VITE_DB_PASSWORD}
+      VITE_DB_HOST: ${VITE_DB_HOST}
       VITE_DB_NAME: ${VITE_DB_NAME}
-      VITE_DATABASE_URL: postgres://${VITE_DB_USER}:${VITE_DB_PASSWORD}@db:5432/${VITE_DB_NAME}
+      VITE_DATABASE_URL: postgres://${VITE_DB_USER}:${VITE_DB_PASSWORD}@${VITE_DB_HOST}:5432/${VITE_DB_NAME}
       PORT: 3000
 
     volumes:
