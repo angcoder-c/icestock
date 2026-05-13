@@ -49,6 +49,228 @@ Inicia sesión. Better Auth crea la sesión y devuelve una cookie `better-auth.s
 ### POST `/api/auth/sign-out`
 Cierra la sesión activa. Invalida la cookie.
 
+---
+
+## Autenticación Custom — Empleados y Clientes
+
+Sistema de autenticación con email/password, JWT tokens y bcrypt para hashing de contraseñas.
+
+### POST `/api/auth/empleados/register`
+Registra un nuevo empleado.
+
+**Request body**
+```json
+{
+  "email": "empleado@heladeria.com",
+  "password": "password123",
+  "name": "Juan Pérez",
+  "rol": "cajero"
+}
+```
+
+**Response 201**
+```json
+{
+  "token": "eyJhbGc...",
+  "user": {
+    "id": "user_1234567890",
+    "email": "empleado@heladeria.com",
+    "name": "Juan Pérez",
+    "rol": "cajero",
+    "tipo": "empleado"
+  }
+}
+```
+
+**Response 400**
+```json
+{ "error": "El correo ya está registrado" }
+```
+
+### POST `/api/auth/empleados/login`
+Inicia sesión como empleado.
+
+**Request body**
+```json
+{
+  "email": "empleado@heladeria.com",
+  "password": "password123"
+}
+```
+
+**Response 200**
+```json
+{
+  "token": "eyJhbGc...",
+  "user": {
+    "id": "user_1234567890",
+    "email": "empleado@heladeria.com",
+    "name": "Juan Pérez",
+    "rol": "cajero",
+    "tipo": "empleado"
+  }
+}
+```
+
+**Response 401**
+```json
+{ "error": "Usuario o contraseña incorrectos" }
+```
+
+### POST `/api/auth/clientes/register`
+Registra un nuevo cliente.
+
+**Request body**
+```json
+{
+  "email": "cliente@email.com",
+  "password": "password123",
+  "nombre": "María García"
+}
+```
+
+**Response 201**
+```json
+{
+  "token": "eyJhbGc...",
+  "user": {
+    "id": "user_9876543210",
+    "email": "cliente@email.com",
+    "name": "María García",
+    "rol": "cliente",
+    "tipo": "cliente"
+  }
+}
+```
+
+**Response 400**
+```json
+{ "error": "El correo ya está registrado" }
+```
+
+### POST `/api/auth/clientes/login`
+Inicia sesión como cliente.
+
+**Request body**
+```json
+{
+  "email": "cliente@email.com",
+  "password": "password123"
+}
+```
+
+**Response 200**
+```json
+{
+  "token": "eyJhbGc...",
+  "user": {
+    "id": "user_9876543210",
+    "email": "cliente@email.com",
+    "name": "María García",
+    "rol": "cliente",
+    "tipo": "cliente"
+  }
+}
+```
+
+**Response 401**
+```json
+{ "error": "Usuario o contraseña incorrectos" }
+```
+
+### GET `/api/auth/me`
+Obtiene la información del usuario actual (requiere token JWT en header).
+
+**Request headers**
+```
+Authorization: Bearer <token>
+```
+
+**Response 200**
+```json
+{
+  "user": {
+    "userId": "user_1234567890",
+    "email": "empleado@heladeria.com",
+    "tipo": "empleado",
+    "rol": "cajero",
+    "iat": 1234567890,
+    "exp": 1234654290
+  }
+}
+```
+
+**Response 401**
+```json
+{ "error": "Token inválido o expirado" }
+```
+
+---
+
+## Cómo usar el sistema de autenticación
+
+### En el cliente (frontend)
+
+1. **Registro de Empleado**
+   ```typescript
+   const response = await fetch('/api/auth/empleados/register', {
+     method: 'POST',
+     headers: { 'Content-Type': 'application/json' },
+     body: JSON.stringify({
+       email: 'empleado@heladeria.com',
+       password: 'password123',
+       name: 'Juan Pérez',
+       rol: 'cajero'
+     })
+   });
+   const data = await response.json();
+   localStorage.setItem('token', data.token);
+   localStorage.setItem('user', JSON.stringify(data.user));
+   ```
+
+2. **Login de Cliente**
+   ```typescript
+   const response = await fetch('/api/auth/clientes/login', {
+     method: 'POST',
+     headers: { 'Content-Type': 'application/json' },
+     body: JSON.stringify({
+       email: 'cliente@email.com',
+       password: 'password123'
+     })
+   });
+   const data = await response.json();
+   localStorage.setItem('token', data.token);
+   ```
+
+3. **Obtener usuario actual**
+   ```typescript
+   const token = localStorage.getItem('token');
+   const response = await fetch('/api/auth/me', {
+     headers: { 'Authorization': `Bearer ${token}` }
+   });
+   const data = await response.json();
+   console.log(data.user);
+   ```
+
+### Rutas de UI
+
+- **Login Empleado**: `/empleados/login`
+- **Registro Empleado**: `/empleados/register`
+- **Login Cliente**: `/clientes/login`
+- **Registro Cliente**: `/clientes/register`
+
+### Seguridad
+
+- Las contraseñas se hashean con **bcryptjs** (10 rounds)
+- Los tokens JWT están configurados con expiración de **7 días**
+- El JWT_SECRET debe cambiarse en producción (ver archivo `.env`)
+- Todos los endpoints de autenticación validan entrada y manejan errores
+
+---
+
+## POST `/api/auth/sign-out`
+Cierra la sesión activa. Invalida la cookie.
+
 **Response 200**
 ```json
 { "success": true }
