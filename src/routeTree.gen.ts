@@ -11,16 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiIndexRouteImport } from './routes/api/index'
-import { Route as EmpleadosRegisterRouteImport } from './routes/empleados/register'
-import { Route as EmpleadosLoginRouteImport } from './routes/empleados/login'
-import { Route as ClientesRegisterRouteImport } from './routes/clientes/register'
-import { Route as ClientesLoginRouteImport } from './routes/clientes/login'
 import { Route as ApiVentasRouteImport } from './routes/api/ventas'
-import { Route as ApiAuthMeRouteImport } from './routes/api/auth/me'
-import { Route as ApiAuthEmpleadosRegisterRouteImport } from './routes/api/auth/empleados/register'
-import { Route as ApiAuthEmpleadosLoginRouteImport } from './routes/api/auth/empleados/login'
-import { Route as ApiAuthClientesRegisterRouteImport } from './routes/api/auth/clientes/register'
-import { Route as ApiAuthClientesLoginRouteImport } from './routes/api/auth/clientes/login'
+import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -32,159 +24,49 @@ const ApiIndexRoute = ApiIndexRouteImport.update({
   path: '/api/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const EmpleadosRegisterRoute = EmpleadosRegisterRouteImport.update({
-  id: '/empleados/register',
-  path: '/empleados/register',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const EmpleadosLoginRoute = EmpleadosLoginRouteImport.update({
-  id: '/empleados/login',
-  path: '/empleados/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ClientesRegisterRoute = ClientesRegisterRouteImport.update({
-  id: '/clientes/register',
-  path: '/clientes/register',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ClientesLoginRoute = ClientesLoginRouteImport.update({
-  id: '/clientes/login',
-  path: '/clientes/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiVentasRoute = ApiVentasRouteImport.update({
   id: '/api/ventas',
   path: '/api/ventas',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiAuthMeRoute = ApiAuthMeRouteImport.update({
-  id: '/api/auth/me',
-  path: '/api/auth/me',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAuthEmpleadosRegisterRoute =
-  ApiAuthEmpleadosRegisterRouteImport.update({
-    id: '/api/auth/empleados/register',
-    path: '/api/auth/empleados/register',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiAuthEmpleadosLoginRoute = ApiAuthEmpleadosLoginRouteImport.update({
-  id: '/api/auth/empleados/login',
-  path: '/api/auth/empleados/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAuthClientesRegisterRoute = ApiAuthClientesRegisterRouteImport.update({
-  id: '/api/auth/clientes/register',
-  path: '/api/auth/clientes/register',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAuthClientesLoginRoute = ApiAuthClientesLoginRouteImport.update({
-  id: '/api/auth/clientes/login',
-  path: '/api/auth/clientes/login',
+const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
+  id: '/api/auth/$',
+  path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/ventas': typeof ApiVentasRoute
-  '/clientes/login': typeof ClientesLoginRoute
-  '/clientes/register': typeof ClientesRegisterRoute
-  '/empleados/login': typeof EmpleadosLoginRoute
-  '/empleados/register': typeof EmpleadosRegisterRoute
   '/api/': typeof ApiIndexRoute
-  '/api/auth/me': typeof ApiAuthMeRoute
-  '/api/auth/clientes/login': typeof ApiAuthClientesLoginRoute
-  '/api/auth/clientes/register': typeof ApiAuthClientesRegisterRoute
-  '/api/auth/empleados/login': typeof ApiAuthEmpleadosLoginRoute
-  '/api/auth/empleados/register': typeof ApiAuthEmpleadosRegisterRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/ventas': typeof ApiVentasRoute
-  '/clientes/login': typeof ClientesLoginRoute
-  '/clientes/register': typeof ClientesRegisterRoute
-  '/empleados/login': typeof EmpleadosLoginRoute
-  '/empleados/register': typeof EmpleadosRegisterRoute
   '/api': typeof ApiIndexRoute
-  '/api/auth/me': typeof ApiAuthMeRoute
-  '/api/auth/clientes/login': typeof ApiAuthClientesLoginRoute
-  '/api/auth/clientes/register': typeof ApiAuthClientesRegisterRoute
-  '/api/auth/empleados/login': typeof ApiAuthEmpleadosLoginRoute
-  '/api/auth/empleados/register': typeof ApiAuthEmpleadosRegisterRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/api/ventas': typeof ApiVentasRoute
-  '/clientes/login': typeof ClientesLoginRoute
-  '/clientes/register': typeof ClientesRegisterRoute
-  '/empleados/login': typeof EmpleadosLoginRoute
-  '/empleados/register': typeof EmpleadosRegisterRoute
   '/api/': typeof ApiIndexRoute
-  '/api/auth/me': typeof ApiAuthMeRoute
-  '/api/auth/clientes/login': typeof ApiAuthClientesLoginRoute
-  '/api/auth/clientes/register': typeof ApiAuthClientesRegisterRoute
-  '/api/auth/empleados/login': typeof ApiAuthEmpleadosLoginRoute
-  '/api/auth/empleados/register': typeof ApiAuthEmpleadosRegisterRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/api/ventas'
-    | '/clientes/login'
-    | '/clientes/register'
-    | '/empleados/login'
-    | '/empleados/register'
-    | '/api/'
-    | '/api/auth/me'
-    | '/api/auth/clientes/login'
-    | '/api/auth/clientes/register'
-    | '/api/auth/empleados/login'
-    | '/api/auth/empleados/register'
+  fullPaths: '/' | '/api/ventas' | '/api/' | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/api/ventas'
-    | '/clientes/login'
-    | '/clientes/register'
-    | '/empleados/login'
-    | '/empleados/register'
-    | '/api'
-    | '/api/auth/me'
-    | '/api/auth/clientes/login'
-    | '/api/auth/clientes/register'
-    | '/api/auth/empleados/login'
-    | '/api/auth/empleados/register'
-  id:
-    | '__root__'
-    | '/'
-    | '/api/ventas'
-    | '/clientes/login'
-    | '/clientes/register'
-    | '/empleados/login'
-    | '/empleados/register'
-    | '/api/'
-    | '/api/auth/me'
-    | '/api/auth/clientes/login'
-    | '/api/auth/clientes/register'
-    | '/api/auth/empleados/login'
-    | '/api/auth/empleados/register'
+  to: '/' | '/api/ventas' | '/api' | '/api/auth/$'
+  id: '__root__' | '/' | '/api/ventas' | '/api/' | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiVentasRoute: typeof ApiVentasRoute
-  ClientesLoginRoute: typeof ClientesLoginRoute
-  ClientesRegisterRoute: typeof ClientesRegisterRoute
-  EmpleadosLoginRoute: typeof EmpleadosLoginRoute
-  EmpleadosRegisterRoute: typeof EmpleadosRegisterRoute
   ApiIndexRoute: typeof ApiIndexRoute
-  ApiAuthMeRoute: typeof ApiAuthMeRoute
-  ApiAuthClientesLoginRoute: typeof ApiAuthClientesLoginRoute
-  ApiAuthClientesRegisterRoute: typeof ApiAuthClientesRegisterRoute
-  ApiAuthEmpleadosLoginRoute: typeof ApiAuthEmpleadosLoginRoute
-  ApiAuthEmpleadosRegisterRoute: typeof ApiAuthEmpleadosRegisterRoute
+  ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -203,34 +85,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/empleados/register': {
-      id: '/empleados/register'
-      path: '/empleados/register'
-      fullPath: '/empleados/register'
-      preLoaderRoute: typeof EmpleadosRegisterRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/empleados/login': {
-      id: '/empleados/login'
-      path: '/empleados/login'
-      fullPath: '/empleados/login'
-      preLoaderRoute: typeof EmpleadosLoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/clientes/register': {
-      id: '/clientes/register'
-      path: '/clientes/register'
-      fullPath: '/clientes/register'
-      preLoaderRoute: typeof ClientesRegisterRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/clientes/login': {
-      id: '/clientes/login'
-      path: '/clientes/login'
-      fullPath: '/clientes/login'
-      preLoaderRoute: typeof ClientesLoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/ventas': {
       id: '/api/ventas'
       path: '/api/ventas'
@@ -238,39 +92,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiVentasRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/auth/me': {
-      id: '/api/auth/me'
-      path: '/api/auth/me'
-      fullPath: '/api/auth/me'
-      preLoaderRoute: typeof ApiAuthMeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/auth/empleados/register': {
-      id: '/api/auth/empleados/register'
-      path: '/api/auth/empleados/register'
-      fullPath: '/api/auth/empleados/register'
-      preLoaderRoute: typeof ApiAuthEmpleadosRegisterRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/auth/empleados/login': {
-      id: '/api/auth/empleados/login'
-      path: '/api/auth/empleados/login'
-      fullPath: '/api/auth/empleados/login'
-      preLoaderRoute: typeof ApiAuthEmpleadosLoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/auth/clientes/register': {
-      id: '/api/auth/clientes/register'
-      path: '/api/auth/clientes/register'
-      fullPath: '/api/auth/clientes/register'
-      preLoaderRoute: typeof ApiAuthClientesRegisterRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/auth/clientes/login': {
-      id: '/api/auth/clientes/login'
-      path: '/api/auth/clientes/login'
-      fullPath: '/api/auth/clientes/login'
-      preLoaderRoute: typeof ApiAuthClientesLoginRouteImport
+    '/api/auth/$': {
+      id: '/api/auth/$'
+      path: '/api/auth/$'
+      fullPath: '/api/auth/$'
+      preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -279,16 +105,8 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiVentasRoute: ApiVentasRoute,
-  ClientesLoginRoute: ClientesLoginRoute,
-  ClientesRegisterRoute: ClientesRegisterRoute,
-  EmpleadosLoginRoute: EmpleadosLoginRoute,
-  EmpleadosRegisterRoute: EmpleadosRegisterRoute,
   ApiIndexRoute: ApiIndexRoute,
-  ApiAuthMeRoute: ApiAuthMeRoute,
-  ApiAuthClientesLoginRoute: ApiAuthClientesLoginRoute,
-  ApiAuthClientesRegisterRoute: ApiAuthClientesRegisterRoute,
-  ApiAuthEmpleadosLoginRoute: ApiAuthEmpleadosLoginRoute,
-  ApiAuthEmpleadosRegisterRoute: ApiAuthEmpleadosRegisterRoute,
+  ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
