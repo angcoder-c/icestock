@@ -9,25 +9,191 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TiendaRouteImport } from './routes/tienda'
+import { Route as PortalRouteImport } from './routes/portal'
+import { Route as EmpleadoRouteImport } from './routes/empleado'
+import { Route as CajaRouteImport } from './routes/caja'
+import { Route as LoginRouteRouteImport } from './routes/login/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LoginIndexRouteImport } from './routes/login/index'
 import { Route as ApiIndexRouteImport } from './routes/api/index'
+import { Route as LoginEmpleadoRouteImport } from './routes/login/empleado'
+import { Route as LoginClienteRouteImport } from './routes/login/cliente'
 import { Route as ApiVentasRouteImport } from './routes/api/ventas'
+import { Route as ApiProveedoresRouteImport } from './routes/api/proveedores'
+import { Route as ApiProductosRouteImport } from './routes/api/productos'
+import { Route as ApiEmpleadosRouteImport } from './routes/api/empleados'
+import { Route as ApiDocsRouteImport } from './routes/api/docs'
+import { Route as ApiClientesRouteImport } from './routes/api/clientes'
+import { Route as ApiCategoriasRouteImport } from './routes/api/categorias'
+import { Route as ApiVentasIdRouteImport } from './routes/api/ventas/$id'
+import { Route as ApiUploadImagenRouteImport } from './routes/api/upload/imagen'
+import { Route as ApiReportesVentasPorCategoriaRouteImport } from './routes/api/reportes/ventas-por-categoria'
+import { Route as ApiReportesVentasDelDiaRouteImport } from './routes/api/reportes/ventas-del-dia'
+import { Route as ApiReportesStockDisponibleRouteImport } from './routes/api/reportes/stock-disponible'
+import { Route as ApiReportesProductosMasVendidosRouteImport } from './routes/api/reportes/productos-mas-vendidos'
+import { Route as ApiReportesClientesFrecuentesRouteImport } from './routes/api/reportes/clientes-frecuentes'
+import { Route as ApiProveedoresIdRouteImport } from './routes/api/proveedores/$id'
+import { Route as ApiProductosIdRouteImport } from './routes/api/productos/$id'
+import { Route as ApiEmpleadosUserIdRouteImport } from './routes/api/empleados/$userId'
+import { Route as ApiClientesMeRouteImport } from './routes/api/clientes/me'
+import { Route as ApiClientesIdRouteImport } from './routes/api/clientes/$id'
+import { Route as ApiCategoriasIdRouteImport } from './routes/api/categorias/$id'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
+const TiendaRoute = TiendaRouteImport.update({
+  id: '/tienda',
+  path: '/tienda',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortalRoute = PortalRouteImport.update({
+  id: '/portal',
+  path: '/portal',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EmpleadoRoute = EmpleadoRouteImport.update({
+  id: '/empleado',
+  path: '/empleado',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CajaRoute = CajaRouteImport.update({
+  id: '/caja',
+  path: '/caja',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRouteRoute = LoginRouteRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const LoginIndexRoute = LoginIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => LoginRouteRoute,
 } as any)
 const ApiIndexRoute = ApiIndexRouteImport.update({
   id: '/api/',
   path: '/api/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginEmpleadoRoute = LoginEmpleadoRouteImport.update({
+  id: '/empleado',
+  path: '/empleado',
+  getParentRoute: () => LoginRouteRoute,
+} as any)
+const LoginClienteRoute = LoginClienteRouteImport.update({
+  id: '/cliente',
+  path: '/cliente',
+  getParentRoute: () => LoginRouteRoute,
+} as any)
 const ApiVentasRoute = ApiVentasRouteImport.update({
   id: '/api/ventas',
   path: '/api/ventas',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ApiProveedoresRoute = ApiProveedoresRouteImport.update({
+  id: '/api/proveedores',
+  path: '/api/proveedores',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiProductosRoute = ApiProductosRouteImport.update({
+  id: '/api/productos',
+  path: '/api/productos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiEmpleadosRoute = ApiEmpleadosRouteImport.update({
+  id: '/api/empleados',
+  path: '/api/empleados',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDocsRoute = ApiDocsRouteImport.update({
+  id: '/api/docs',
+  path: '/api/docs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiClientesRoute = ApiClientesRouteImport.update({
+  id: '/api/clientes',
+  path: '/api/clientes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCategoriasRoute = ApiCategoriasRouteImport.update({
+  id: '/api/categorias',
+  path: '/api/categorias',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiVentasIdRoute = ApiVentasIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiVentasRoute,
+} as any)
+const ApiUploadImagenRoute = ApiUploadImagenRouteImport.update({
+  id: '/api/upload/imagen',
+  path: '/api/upload/imagen',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiReportesVentasPorCategoriaRoute =
+  ApiReportesVentasPorCategoriaRouteImport.update({
+    id: '/api/reportes/ventas-por-categoria',
+    path: '/api/reportes/ventas-por-categoria',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiReportesVentasDelDiaRoute = ApiReportesVentasDelDiaRouteImport.update({
+  id: '/api/reportes/ventas-del-dia',
+  path: '/api/reportes/ventas-del-dia',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiReportesStockDisponibleRoute =
+  ApiReportesStockDisponibleRouteImport.update({
+    id: '/api/reportes/stock-disponible',
+    path: '/api/reportes/stock-disponible',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiReportesProductosMasVendidosRoute =
+  ApiReportesProductosMasVendidosRouteImport.update({
+    id: '/api/reportes/productos-mas-vendidos',
+    path: '/api/reportes/productos-mas-vendidos',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiReportesClientesFrecuentesRoute =
+  ApiReportesClientesFrecuentesRouteImport.update({
+    id: '/api/reportes/clientes-frecuentes',
+    path: '/api/reportes/clientes-frecuentes',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiProveedoresIdRoute = ApiProveedoresIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiProveedoresRoute,
+} as any)
+const ApiProductosIdRoute = ApiProductosIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiProductosRoute,
+} as any)
+const ApiEmpleadosUserIdRoute = ApiEmpleadosUserIdRouteImport.update({
+  id: '/$userId',
+  path: '/$userId',
+  getParentRoute: () => ApiEmpleadosRoute,
+} as any)
+const ApiClientesMeRoute = ApiClientesMeRouteImport.update({
+  id: '/me',
+  path: '/me',
+  getParentRoute: () => ApiClientesRoute,
+} as any)
+const ApiClientesIdRoute = ApiClientesIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiClientesRoute,
+} as any)
+const ApiCategoriasIdRoute = ApiCategoriasIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiCategoriasRoute,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
@@ -37,46 +203,278 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/api/ventas': typeof ApiVentasRoute
+  '/login': typeof LoginRouteRouteWithChildren
+  '/caja': typeof CajaRoute
+  '/empleado': typeof EmpleadoRoute
+  '/portal': typeof PortalRoute
+  '/tienda': typeof TiendaRoute
+  '/api/categorias': typeof ApiCategoriasRouteWithChildren
+  '/api/clientes': typeof ApiClientesRouteWithChildren
+  '/api/docs': typeof ApiDocsRoute
+  '/api/empleados': typeof ApiEmpleadosRouteWithChildren
+  '/api/productos': typeof ApiProductosRouteWithChildren
+  '/api/proveedores': typeof ApiProveedoresRouteWithChildren
+  '/api/ventas': typeof ApiVentasRouteWithChildren
+  '/login/cliente': typeof LoginClienteRoute
+  '/login/empleado': typeof LoginEmpleadoRoute
   '/api/': typeof ApiIndexRoute
+  '/login/': typeof LoginIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/categorias/$id': typeof ApiCategoriasIdRoute
+  '/api/clientes/$id': typeof ApiClientesIdRoute
+  '/api/clientes/me': typeof ApiClientesMeRoute
+  '/api/empleados/$userId': typeof ApiEmpleadosUserIdRoute
+  '/api/productos/$id': typeof ApiProductosIdRoute
+  '/api/proveedores/$id': typeof ApiProveedoresIdRoute
+  '/api/reportes/clientes-frecuentes': typeof ApiReportesClientesFrecuentesRoute
+  '/api/reportes/productos-mas-vendidos': typeof ApiReportesProductosMasVendidosRoute
+  '/api/reportes/stock-disponible': typeof ApiReportesStockDisponibleRoute
+  '/api/reportes/ventas-del-dia': typeof ApiReportesVentasDelDiaRoute
+  '/api/reportes/ventas-por-categoria': typeof ApiReportesVentasPorCategoriaRoute
+  '/api/upload/imagen': typeof ApiUploadImagenRoute
+  '/api/ventas/$id': typeof ApiVentasIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/api/ventas': typeof ApiVentasRoute
+  '/caja': typeof CajaRoute
+  '/empleado': typeof EmpleadoRoute
+  '/portal': typeof PortalRoute
+  '/tienda': typeof TiendaRoute
+  '/api/categorias': typeof ApiCategoriasRouteWithChildren
+  '/api/clientes': typeof ApiClientesRouteWithChildren
+  '/api/docs': typeof ApiDocsRoute
+  '/api/empleados': typeof ApiEmpleadosRouteWithChildren
+  '/api/productos': typeof ApiProductosRouteWithChildren
+  '/api/proveedores': typeof ApiProveedoresRouteWithChildren
+  '/api/ventas': typeof ApiVentasRouteWithChildren
+  '/login/cliente': typeof LoginClienteRoute
+  '/login/empleado': typeof LoginEmpleadoRoute
   '/api': typeof ApiIndexRoute
+  '/login': typeof LoginIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/categorias/$id': typeof ApiCategoriasIdRoute
+  '/api/clientes/$id': typeof ApiClientesIdRoute
+  '/api/clientes/me': typeof ApiClientesMeRoute
+  '/api/empleados/$userId': typeof ApiEmpleadosUserIdRoute
+  '/api/productos/$id': typeof ApiProductosIdRoute
+  '/api/proveedores/$id': typeof ApiProveedoresIdRoute
+  '/api/reportes/clientes-frecuentes': typeof ApiReportesClientesFrecuentesRoute
+  '/api/reportes/productos-mas-vendidos': typeof ApiReportesProductosMasVendidosRoute
+  '/api/reportes/stock-disponible': typeof ApiReportesStockDisponibleRoute
+  '/api/reportes/ventas-del-dia': typeof ApiReportesVentasDelDiaRoute
+  '/api/reportes/ventas-por-categoria': typeof ApiReportesVentasPorCategoriaRoute
+  '/api/upload/imagen': typeof ApiUploadImagenRoute
+  '/api/ventas/$id': typeof ApiVentasIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/api/ventas': typeof ApiVentasRoute
+  '/login': typeof LoginRouteRouteWithChildren
+  '/caja': typeof CajaRoute
+  '/empleado': typeof EmpleadoRoute
+  '/portal': typeof PortalRoute
+  '/tienda': typeof TiendaRoute
+  '/api/categorias': typeof ApiCategoriasRouteWithChildren
+  '/api/clientes': typeof ApiClientesRouteWithChildren
+  '/api/docs': typeof ApiDocsRoute
+  '/api/empleados': typeof ApiEmpleadosRouteWithChildren
+  '/api/productos': typeof ApiProductosRouteWithChildren
+  '/api/proveedores': typeof ApiProveedoresRouteWithChildren
+  '/api/ventas': typeof ApiVentasRouteWithChildren
+  '/login/cliente': typeof LoginClienteRoute
+  '/login/empleado': typeof LoginEmpleadoRoute
   '/api/': typeof ApiIndexRoute
+  '/login/': typeof LoginIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/categorias/$id': typeof ApiCategoriasIdRoute
+  '/api/clientes/$id': typeof ApiClientesIdRoute
+  '/api/clientes/me': typeof ApiClientesMeRoute
+  '/api/empleados/$userId': typeof ApiEmpleadosUserIdRoute
+  '/api/productos/$id': typeof ApiProductosIdRoute
+  '/api/proveedores/$id': typeof ApiProveedoresIdRoute
+  '/api/reportes/clientes-frecuentes': typeof ApiReportesClientesFrecuentesRoute
+  '/api/reportes/productos-mas-vendidos': typeof ApiReportesProductosMasVendidosRoute
+  '/api/reportes/stock-disponible': typeof ApiReportesStockDisponibleRoute
+  '/api/reportes/ventas-del-dia': typeof ApiReportesVentasDelDiaRoute
+  '/api/reportes/ventas-por-categoria': typeof ApiReportesVentasPorCategoriaRoute
+  '/api/upload/imagen': typeof ApiUploadImagenRoute
+  '/api/ventas/$id': typeof ApiVentasIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/ventas' | '/api/' | '/api/auth/$'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/caja'
+    | '/empleado'
+    | '/portal'
+    | '/tienda'
+    | '/api/categorias'
+    | '/api/clientes'
+    | '/api/docs'
+    | '/api/empleados'
+    | '/api/productos'
+    | '/api/proveedores'
+    | '/api/ventas'
+    | '/login/cliente'
+    | '/login/empleado'
+    | '/api/'
+    | '/login/'
+    | '/api/auth/$'
+    | '/api/categorias/$id'
+    | '/api/clientes/$id'
+    | '/api/clientes/me'
+    | '/api/empleados/$userId'
+    | '/api/productos/$id'
+    | '/api/proveedores/$id'
+    | '/api/reportes/clientes-frecuentes'
+    | '/api/reportes/productos-mas-vendidos'
+    | '/api/reportes/stock-disponible'
+    | '/api/reportes/ventas-del-dia'
+    | '/api/reportes/ventas-por-categoria'
+    | '/api/upload/imagen'
+    | '/api/ventas/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/ventas' | '/api' | '/api/auth/$'
-  id: '__root__' | '/' | '/api/ventas' | '/api/' | '/api/auth/$'
+  to:
+    | '/'
+    | '/caja'
+    | '/empleado'
+    | '/portal'
+    | '/tienda'
+    | '/api/categorias'
+    | '/api/clientes'
+    | '/api/docs'
+    | '/api/empleados'
+    | '/api/productos'
+    | '/api/proveedores'
+    | '/api/ventas'
+    | '/login/cliente'
+    | '/login/empleado'
+    | '/api'
+    | '/login'
+    | '/api/auth/$'
+    | '/api/categorias/$id'
+    | '/api/clientes/$id'
+    | '/api/clientes/me'
+    | '/api/empleados/$userId'
+    | '/api/productos/$id'
+    | '/api/proveedores/$id'
+    | '/api/reportes/clientes-frecuentes'
+    | '/api/reportes/productos-mas-vendidos'
+    | '/api/reportes/stock-disponible'
+    | '/api/reportes/ventas-del-dia'
+    | '/api/reportes/ventas-por-categoria'
+    | '/api/upload/imagen'
+    | '/api/ventas/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/login'
+    | '/caja'
+    | '/empleado'
+    | '/portal'
+    | '/tienda'
+    | '/api/categorias'
+    | '/api/clientes'
+    | '/api/docs'
+    | '/api/empleados'
+    | '/api/productos'
+    | '/api/proveedores'
+    | '/api/ventas'
+    | '/login/cliente'
+    | '/login/empleado'
+    | '/api/'
+    | '/login/'
+    | '/api/auth/$'
+    | '/api/categorias/$id'
+    | '/api/clientes/$id'
+    | '/api/clientes/me'
+    | '/api/empleados/$userId'
+    | '/api/productos/$id'
+    | '/api/proveedores/$id'
+    | '/api/reportes/clientes-frecuentes'
+    | '/api/reportes/productos-mas-vendidos'
+    | '/api/reportes/stock-disponible'
+    | '/api/reportes/ventas-del-dia'
+    | '/api/reportes/ventas-por-categoria'
+    | '/api/upload/imagen'
+    | '/api/ventas/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  ApiVentasRoute: typeof ApiVentasRoute
+  LoginRouteRoute: typeof LoginRouteRouteWithChildren
+  CajaRoute: typeof CajaRoute
+  EmpleadoRoute: typeof EmpleadoRoute
+  PortalRoute: typeof PortalRoute
+  TiendaRoute: typeof TiendaRoute
+  ApiCategoriasRoute: typeof ApiCategoriasRouteWithChildren
+  ApiClientesRoute: typeof ApiClientesRouteWithChildren
+  ApiDocsRoute: typeof ApiDocsRoute
+  ApiEmpleadosRoute: typeof ApiEmpleadosRouteWithChildren
+  ApiProductosRoute: typeof ApiProductosRouteWithChildren
+  ApiProveedoresRoute: typeof ApiProveedoresRouteWithChildren
+  ApiVentasRoute: typeof ApiVentasRouteWithChildren
   ApiIndexRoute: typeof ApiIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiReportesClientesFrecuentesRoute: typeof ApiReportesClientesFrecuentesRoute
+  ApiReportesProductosMasVendidosRoute: typeof ApiReportesProductosMasVendidosRoute
+  ApiReportesStockDisponibleRoute: typeof ApiReportesStockDisponibleRoute
+  ApiReportesVentasDelDiaRoute: typeof ApiReportesVentasDelDiaRoute
+  ApiReportesVentasPorCategoriaRoute: typeof ApiReportesVentasPorCategoriaRoute
+  ApiUploadImagenRoute: typeof ApiUploadImagenRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/tienda': {
+      id: '/tienda'
+      path: '/tienda'
+      fullPath: '/tienda'
+      preLoaderRoute: typeof TiendaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/portal': {
+      id: '/portal'
+      path: '/portal'
+      fullPath: '/portal'
+      preLoaderRoute: typeof PortalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/empleado': {
+      id: '/empleado'
+      path: '/empleado'
+      fullPath: '/empleado'
+      preLoaderRoute: typeof EmpleadoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/caja': {
+      id: '/caja'
+      path: '/caja'
+      fullPath: '/caja'
+      preLoaderRoute: typeof CajaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/login/': {
+      id: '/login/'
+      path: '/'
+      fullPath: '/login/'
+      preLoaderRoute: typeof LoginIndexRouteImport
+      parentRoute: typeof LoginRouteRoute
     }
     '/api/': {
       id: '/api/'
@@ -85,12 +483,159 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login/empleado': {
+      id: '/login/empleado'
+      path: '/empleado'
+      fullPath: '/login/empleado'
+      preLoaderRoute: typeof LoginEmpleadoRouteImport
+      parentRoute: typeof LoginRouteRoute
+    }
+    '/login/cliente': {
+      id: '/login/cliente'
+      path: '/cliente'
+      fullPath: '/login/cliente'
+      preLoaderRoute: typeof LoginClienteRouteImport
+      parentRoute: typeof LoginRouteRoute
+    }
     '/api/ventas': {
       id: '/api/ventas'
       path: '/api/ventas'
       fullPath: '/api/ventas'
       preLoaderRoute: typeof ApiVentasRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/proveedores': {
+      id: '/api/proveedores'
+      path: '/api/proveedores'
+      fullPath: '/api/proveedores'
+      preLoaderRoute: typeof ApiProveedoresRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/productos': {
+      id: '/api/productos'
+      path: '/api/productos'
+      fullPath: '/api/productos'
+      preLoaderRoute: typeof ApiProductosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/empleados': {
+      id: '/api/empleados'
+      path: '/api/empleados'
+      fullPath: '/api/empleados'
+      preLoaderRoute: typeof ApiEmpleadosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/docs': {
+      id: '/api/docs'
+      path: '/api/docs'
+      fullPath: '/api/docs'
+      preLoaderRoute: typeof ApiDocsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/clientes': {
+      id: '/api/clientes'
+      path: '/api/clientes'
+      fullPath: '/api/clientes'
+      preLoaderRoute: typeof ApiClientesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/categorias': {
+      id: '/api/categorias'
+      path: '/api/categorias'
+      fullPath: '/api/categorias'
+      preLoaderRoute: typeof ApiCategoriasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ventas/$id': {
+      id: '/api/ventas/$id'
+      path: '/$id'
+      fullPath: '/api/ventas/$id'
+      preLoaderRoute: typeof ApiVentasIdRouteImport
+      parentRoute: typeof ApiVentasRoute
+    }
+    '/api/upload/imagen': {
+      id: '/api/upload/imagen'
+      path: '/api/upload/imagen'
+      fullPath: '/api/upload/imagen'
+      preLoaderRoute: typeof ApiUploadImagenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/reportes/ventas-por-categoria': {
+      id: '/api/reportes/ventas-por-categoria'
+      path: '/api/reportes/ventas-por-categoria'
+      fullPath: '/api/reportes/ventas-por-categoria'
+      preLoaderRoute: typeof ApiReportesVentasPorCategoriaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/reportes/ventas-del-dia': {
+      id: '/api/reportes/ventas-del-dia'
+      path: '/api/reportes/ventas-del-dia'
+      fullPath: '/api/reportes/ventas-del-dia'
+      preLoaderRoute: typeof ApiReportesVentasDelDiaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/reportes/stock-disponible': {
+      id: '/api/reportes/stock-disponible'
+      path: '/api/reportes/stock-disponible'
+      fullPath: '/api/reportes/stock-disponible'
+      preLoaderRoute: typeof ApiReportesStockDisponibleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/reportes/productos-mas-vendidos': {
+      id: '/api/reportes/productos-mas-vendidos'
+      path: '/api/reportes/productos-mas-vendidos'
+      fullPath: '/api/reportes/productos-mas-vendidos'
+      preLoaderRoute: typeof ApiReportesProductosMasVendidosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/reportes/clientes-frecuentes': {
+      id: '/api/reportes/clientes-frecuentes'
+      path: '/api/reportes/clientes-frecuentes'
+      fullPath: '/api/reportes/clientes-frecuentes'
+      preLoaderRoute: typeof ApiReportesClientesFrecuentesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/proveedores/$id': {
+      id: '/api/proveedores/$id'
+      path: '/$id'
+      fullPath: '/api/proveedores/$id'
+      preLoaderRoute: typeof ApiProveedoresIdRouteImport
+      parentRoute: typeof ApiProveedoresRoute
+    }
+    '/api/productos/$id': {
+      id: '/api/productos/$id'
+      path: '/$id'
+      fullPath: '/api/productos/$id'
+      preLoaderRoute: typeof ApiProductosIdRouteImport
+      parentRoute: typeof ApiProductosRoute
+    }
+    '/api/empleados/$userId': {
+      id: '/api/empleados/$userId'
+      path: '/$userId'
+      fullPath: '/api/empleados/$userId'
+      preLoaderRoute: typeof ApiEmpleadosUserIdRouteImport
+      parentRoute: typeof ApiEmpleadosRoute
+    }
+    '/api/clientes/me': {
+      id: '/api/clientes/me'
+      path: '/me'
+      fullPath: '/api/clientes/me'
+      preLoaderRoute: typeof ApiClientesMeRouteImport
+      parentRoute: typeof ApiClientesRoute
+    }
+    '/api/clientes/$id': {
+      id: '/api/clientes/$id'
+      path: '/$id'
+      fullPath: '/api/clientes/$id'
+      preLoaderRoute: typeof ApiClientesIdRouteImport
+      parentRoute: typeof ApiClientesRoute
+    }
+    '/api/categorias/$id': {
+      id: '/api/categorias/$id'
+      path: '/$id'
+      fullPath: '/api/categorias/$id'
+      preLoaderRoute: typeof ApiCategoriasIdRouteImport
+      parentRoute: typeof ApiCategoriasRoute
     }
     '/api/auth/$': {
       id: '/api/auth/$'
@@ -102,11 +647,118 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface LoginRouteRouteChildren {
+  LoginClienteRoute: typeof LoginClienteRoute
+  LoginEmpleadoRoute: typeof LoginEmpleadoRoute
+  LoginIndexRoute: typeof LoginIndexRoute
+}
+
+const LoginRouteRouteChildren: LoginRouteRouteChildren = {
+  LoginClienteRoute: LoginClienteRoute,
+  LoginEmpleadoRoute: LoginEmpleadoRoute,
+  LoginIndexRoute: LoginIndexRoute,
+}
+
+const LoginRouteRouteWithChildren = LoginRouteRoute._addFileChildren(
+  LoginRouteRouteChildren,
+)
+
+interface ApiCategoriasRouteChildren {
+  ApiCategoriasIdRoute: typeof ApiCategoriasIdRoute
+}
+
+const ApiCategoriasRouteChildren: ApiCategoriasRouteChildren = {
+  ApiCategoriasIdRoute: ApiCategoriasIdRoute,
+}
+
+const ApiCategoriasRouteWithChildren = ApiCategoriasRoute._addFileChildren(
+  ApiCategoriasRouteChildren,
+)
+
+interface ApiClientesRouteChildren {
+  ApiClientesIdRoute: typeof ApiClientesIdRoute
+  ApiClientesMeRoute: typeof ApiClientesMeRoute
+}
+
+const ApiClientesRouteChildren: ApiClientesRouteChildren = {
+  ApiClientesIdRoute: ApiClientesIdRoute,
+  ApiClientesMeRoute: ApiClientesMeRoute,
+}
+
+const ApiClientesRouteWithChildren = ApiClientesRoute._addFileChildren(
+  ApiClientesRouteChildren,
+)
+
+interface ApiEmpleadosRouteChildren {
+  ApiEmpleadosUserIdRoute: typeof ApiEmpleadosUserIdRoute
+}
+
+const ApiEmpleadosRouteChildren: ApiEmpleadosRouteChildren = {
+  ApiEmpleadosUserIdRoute: ApiEmpleadosUserIdRoute,
+}
+
+const ApiEmpleadosRouteWithChildren = ApiEmpleadosRoute._addFileChildren(
+  ApiEmpleadosRouteChildren,
+)
+
+interface ApiProductosRouteChildren {
+  ApiProductosIdRoute: typeof ApiProductosIdRoute
+}
+
+const ApiProductosRouteChildren: ApiProductosRouteChildren = {
+  ApiProductosIdRoute: ApiProductosIdRoute,
+}
+
+const ApiProductosRouteWithChildren = ApiProductosRoute._addFileChildren(
+  ApiProductosRouteChildren,
+)
+
+interface ApiProveedoresRouteChildren {
+  ApiProveedoresIdRoute: typeof ApiProveedoresIdRoute
+}
+
+const ApiProveedoresRouteChildren: ApiProveedoresRouteChildren = {
+  ApiProveedoresIdRoute: ApiProveedoresIdRoute,
+}
+
+const ApiProveedoresRouteWithChildren = ApiProveedoresRoute._addFileChildren(
+  ApiProveedoresRouteChildren,
+)
+
+interface ApiVentasRouteChildren {
+  ApiVentasIdRoute: typeof ApiVentasIdRoute
+}
+
+const ApiVentasRouteChildren: ApiVentasRouteChildren = {
+  ApiVentasIdRoute: ApiVentasIdRoute,
+}
+
+const ApiVentasRouteWithChildren = ApiVentasRoute._addFileChildren(
+  ApiVentasRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  ApiVentasRoute: ApiVentasRoute,
+  LoginRouteRoute: LoginRouteRouteWithChildren,
+  CajaRoute: CajaRoute,
+  EmpleadoRoute: EmpleadoRoute,
+  PortalRoute: PortalRoute,
+  TiendaRoute: TiendaRoute,
+  ApiCategoriasRoute: ApiCategoriasRouteWithChildren,
+  ApiClientesRoute: ApiClientesRouteWithChildren,
+  ApiDocsRoute: ApiDocsRoute,
+  ApiEmpleadosRoute: ApiEmpleadosRouteWithChildren,
+  ApiProductosRoute: ApiProductosRouteWithChildren,
+  ApiProveedoresRoute: ApiProveedoresRouteWithChildren,
+  ApiVentasRoute: ApiVentasRouteWithChildren,
   ApiIndexRoute: ApiIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiReportesClientesFrecuentesRoute: ApiReportesClientesFrecuentesRoute,
+  ApiReportesProductosMasVendidosRoute: ApiReportesProductosMasVendidosRoute,
+  ApiReportesStockDisponibleRoute: ApiReportesStockDisponibleRoute,
+  ApiReportesVentasDelDiaRoute: ApiReportesVentasDelDiaRoute,
+  ApiReportesVentasPorCategoriaRoute: ApiReportesVentasPorCategoriaRoute,
+  ApiUploadImagenRoute: ApiUploadImagenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
