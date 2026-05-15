@@ -1,7 +1,8 @@
+'use server'
+
 import pg from 'pg'
 import dotenv from 'dotenv'
-import bcrypt from 'bcryptjs'
-import jwt from 'jsonwebtoken'
+import { v4 as uuidv4 } from 'uuid'
 
 dotenv.config()
 
@@ -17,28 +18,25 @@ const dbName = process.env.DB_NAME ?? process.env.VITE_DB_NAME ?? 'icestock'
 const dbPort = Number(process.env.DB_PORT ?? process.env.VITE_DB_PORT ?? 5432)
 
 const connectionString =
-  process.env.DATABASE_URL ??
   process.env.VITE_DATABASE_URL ??
+  process.env.DATABASE_URL ??
   `postgres://${dbUser}:${dbPassword}@${dbHost}:${dbPort}/${dbName}`
 
 export const db = new pg.Pool({
   connectionString,
 })
 
-// JWT Secret for token generation and verification
-const JWT_SECRET = process.env.JWT_SECRET ?? 'super-secret-key-change-in-production'
-const JWT_EXPIRES_IN = '7d'
+// ============================================================
+//  AUTENTICACIÓN: Usar Better Auth via sus APIs automáticas
+//  POST /api/auth/sign-up/email
+//  POST /api/auth/sign-in/email
+//  GET  /api/auth/session
+//  POST /api/auth/sign-out
+// ============================================================
 
-type AuthResponse = {
-  token: string
-  user: {
-    id: string
-    email: string
-    name: string
-    rol: string
-    tipo: 'empleado' | 'cliente'
-  }
-}
+// ============================================================
+//  CONSULTAS: VISTAS Y ANALÍTICA
+// ============================================================
 
 export async function getVentasDesdeVista(limit = 20) {
   const query = `
@@ -333,265 +331,423 @@ export async function getDashboardData() {
 }
 
 // ============================================================
-//  FUNCIONES DE AUTENTICACIÓN
+//  CRUD: CATEGORIA
 // ============================================================
 
-export async function registerEmpleado(
-  email: string,
-  password: string,
-  name: string,
-  rol: 'admin' | 'cajero' = 'cajero',
-): Promise<AuthResponse> {
-  const client = await db.connect()
-
-  try {
-    await client.query('BEGIN')
-
-    // Verificar si el email ya existe
-    const existingUser = await client.query('SELECT id FROM "user" WHERE email = $1', [email])
-    if (existingUser.rowCount && existingUser.rowCount > 0) {
-      throw new Error('El correo ya está registrado')
-    }
-
-    // Generar ID para el usuario
-    const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-
-    // Hash de la contraseña
-    const hashedPassword = await bcrypt.hash(password, 10)
-
-    // Insertar en tabla "user"
-    await client.query(
-      `INSERT INTO "user" (id, name, email, email_verified, rol)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [userId, name, email, false, rol],
-    )
-
-    // Insertar en tabla Empleado
-    await client.query('INSERT INTO Empleado (user_id, activo) VALUES ($1, $2)', [
-      userId,
-      true,
-    ])
-
-    // Insertar contraseña en tabla account
-    const accountId = `account_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    await client.query(
-      `INSERT INTO account (id, account_id, provider_id, user_id, password)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [accountId, accountId, 'credential', userId, hashedPassword],
-    )
-
-    await client.query('COMMIT')
-
-    // Generar token JWT
-    const token = jwt.sign(
-      {
-        userId,
-        email,
-        tipo: 'empleado',
-        rol,
-      },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN },
-    )
-
-    return {
-      token,
-      user: {
-        id: userId,
-        email,
-        name,
-        rol,
-        tipo: 'empleado',
-      },
-    }
-  } catch (error) {
-    await client.query('ROLLBACK')
-    throw error
-  } finally {
-    client.release()
-  }
+export async function createCategoria(nombre: string, descripcion?: string) {
+  const query = `
+    INSERT INTO Categoria (nombre, descripcion)
+    VALUES ($1, $2)
+    RETURNING id, nombre, descripcion
+  `
+  const result = await db.query(query, [nombre, descripcion || null])
+  return result.rows[0]
 }
 
-export async function loginEmpleado(email: string, password: string): Promise<AuthResponse> {
-  // Buscar usuario
-  const userResult = await db.query('SELECT * FROM "user" WHERE email = $1', [email])
-
-  if (!userResult.rows.length) {
-    throw new Error('Usuario o contraseña incorrectos')
-  }
-
-  const user = userResult.rows[0]
-
-  // Buscar contraseña
-  const accountResult = await db.query(
-    `SELECT password FROM account WHERE user_id = $1 AND provider_id = $2`,
-    [user.id, 'credential'],
-  )
-
-  if (!accountResult.rows.length) {
-    throw new Error('Usuario o contraseña incorrectos')
-  }
-
-  // Verificar contraseña
-  const isPasswordValid = await bcrypt.compare(password, accountResult.rows[0].password)
-
-  if (!isPasswordValid) {
-    throw new Error('Usuario o contraseña incorrectos')
-  }
-
-  // Generar token JWT
-  const token = jwt.sign(
-    {
-      userId: user.id,
-      email: user.email,
-      tipo: 'empleado',
-      rol: user.rol,
-    },
-    JWT_SECRET,
-    { expiresIn: JWT_EXPIRES_IN },
-  )
-
-  return {
-    token,
-    user: {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      rol: user.rol,
-      tipo: 'empleado',
-    },
-  }
+export async function getCategoria(id: number) {
+  const query = 'SELECT id, nombre, descripcion FROM Categoria WHERE id = $1'
+  const result = await db.query(query, [id])
+  return result.rows[0] || null
 }
 
-export async function registerCliente(
-  email: string,
-  password: string,
-  nombre: string,
-): Promise<AuthResponse> {
-  const client = await db.connect()
-
-  try {
-    await client.query('BEGIN')
-
-    // Verificar si el email ya existe
-    const existingUser = await client.query('SELECT id FROM "user" WHERE email = $1', [email])
-    if (existingUser.rowCount && existingUser.rowCount > 0) {
-      throw new Error('El correo ya está registrado')
-    }
-
-    // Generar ID para el usuario
-    const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-
-    // Hash de la contraseña
-    const hashedPassword = await bcrypt.hash(password, 10)
-
-    // Insertar en tabla "user" con rol por defecto para clientes
-    await client.query(
-      `INSERT INTO "user" (id, name, email, email_verified, rol)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [userId, nombre, email, false, 'cliente'],
-    )
-
-    // Insertar en tabla Cliente
-    await client.query(
-      `INSERT INTO Cliente (nombre, email, user_id, activo)
-       VALUES ($1, $2, $3, $4)`,
-      [nombre, email, userId, true],
-    )
-
-    // Insertar contraseña en tabla account
-    const accountId = `account_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    await client.query(
-      `INSERT INTO account (id, account_id, provider_id, user_id, password)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [accountId, accountId, 'credential', userId, hashedPassword],
-    )
-
-    await client.query('COMMIT')
-
-    // Generar token JWT
-    const token = jwt.sign(
-      {
-        userId,
-        email,
-        tipo: 'cliente',
-      },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN },
-    )
-
-    return {
-      token,
-      user: {
-        id: userId,
-        email,
-        name: nombre,
-        rol: 'cliente',
-        tipo: 'cliente',
-      },
-    }
-  } catch (error) {
-    await client.query('ROLLBACK')
-    throw error
-  } finally {
-    client.release()
-  }
+export async function getCategorias(limit = 50) {
+  const query = 'SELECT id, nombre, descripcion FROM Categoria ORDER BY nombre LIMIT $1'
+  const result = await db.query(query, [limit])
+  return result.rows
 }
 
-export async function loginCliente(email: string, password: string): Promise<AuthResponse> {
-  // Buscar usuario
-  const userResult = await db.query('SELECT * FROM "user" WHERE email = $1', [email])
+export async function updateCategoria(id: number, nombre?: string, descripcion?: string) {
+  let query = 'UPDATE Categoria SET'
+  const params: (string | number)[] = []
+  const updates: string[] = []
 
-  if (!userResult.rows.length) {
-    throw new Error('Usuario o contraseña incorrectos')
+  if (nombre !== undefined) {
+    updates.push(`nombre = $${params.length + 1}`)
+    params.push(nombre)
   }
 
-  const user = userResult.rows[0]
-
-  // Buscar contraseña
-  const accountResult = await db.query(
-    `SELECT password FROM account WHERE user_id = $1 AND provider_id = $2`,
-    [user.id, 'credential'],
-  )
-
-  if (!accountResult.rows.length) {
-    throw new Error('Usuario o contraseña incorrectos')
+  if (descripcion !== undefined) {
+    updates.push(`descripcion = $${params.length + 1}`)
+    params.push(descripcion)
   }
 
-  // Verificar contraseña
-  const isPasswordValid = await bcrypt.compare(password, accountResult.rows[0].password)
+  if (updates.length === 0) return null
 
-  if (!isPasswordValid) {
-    throw new Error('Usuario o contraseña incorrectos')
-  }
+  query += ' ' + updates.join(', ') + ` WHERE id = $${params.length + 1} RETURNING id, nombre, descripcion`
+  params.push(id)
 
-  // Generar token JWT
-  const token = jwt.sign(
-    {
-      userId: user.id,
-      email: user.email,
-      tipo: 'cliente',
-    },
-    JWT_SECRET,
-    { expiresIn: JWT_EXPIRES_IN },
-  )
-
-  return {
-    token,
-    user: {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      rol: 'cliente',
-      tipo: 'cliente',
-    },
-  }
+  const result = await db.query(query, params)
+  return result.rows[0] || null
 }
 
-export function verifyToken(token: string) {
-  try {
-    return jwt.verify(token, JWT_SECRET)
-  } catch {
-    throw new Error('Token inválido o expirado')
+export async function deleteCategoria(id: number) {
+  const query = 'DELETE FROM Categoria WHERE id = $1 RETURNING id'
+  const result = await db.query(query, [id])
+  return result.rows[0] || null
+}
+
+// ============================================================
+//  CRUD: PROVEEDOR
+// ============================================================
+
+export async function createProveedor(nombre: string, telefono?: string, email?: string, direccion?: string) {
+  const query = `
+    INSERT INTO Proveedor (nombre, telefono, email, direccion)
+    VALUES ($1, $2, $3, $4)
+    RETURNING id, nombre, telefono, email, direccion
+  `
+  const result = await db.query(query, [nombre, telefono || null, email || null, direccion || null])
+  return result.rows[0]
+}
+
+export async function getProveedor(id: number) {
+  const query = 'SELECT id, nombre, telefono, email, direccion FROM Proveedor WHERE id = $1'
+  const result = await db.query(query, [id])
+  return result.rows[0] || null
+}
+
+export async function getProveedores(limit = 50) {
+  const query = 'SELECT id, nombre, telefono, email, direccion FROM Proveedor ORDER BY nombre LIMIT $1'
+  const result = await db.query(query, [limit])
+  return result.rows
+}
+
+export async function updateProveedor(id: number, nombre?: string, telefono?: string, email?: string, direccion?: string) {
+  let query = 'UPDATE Proveedor SET'
+  const params: (string | number)[] = []
+  const updates: string[] = []
+
+  if (nombre !== undefined) {
+    updates.push(`nombre = $${params.length + 1}`)
+    params.push(nombre)
   }
+
+  if (telefono !== undefined) {
+    updates.push(`telefono = $${params.length + 1}`)
+    params.push(telefono)
+  }
+
+  if (email !== undefined) {
+    updates.push(`email = $${params.length + 1}`)
+    params.push(email)
+  }
+
+  if (direccion !== undefined) {
+    updates.push(`direccion = $${params.length + 1}`)
+    params.push(direccion)
+  }
+
+  if (updates.length === 0) return null
+
+  query += ' ' + updates.join(', ') + ` WHERE id = $${params.length + 1} RETURNING id, nombre, telefono, email, direccion`
+  params.push(id)
+
+  const result = await db.query(query, params)
+  return result.rows[0] || null
+}
+
+export async function deleteProveedor(id: number) {
+  const query = 'DELETE FROM Proveedor WHERE id = $1 RETURNING id'
+  const result = await db.query(query, [id])
+  return result.rows[0] || null
+}
+
+// ============================================================
+//  CRUD: PRODUCTO
+// ============================================================
+
+export async function createProducto(nombre: string, precio: number, id_categoria: number, id_proveedor: number, descripcion?: string, stock: number = 0) {
+  const query = `
+    INSERT INTO Producto (nombre, descripcion, precio, stock, id_categoria, id_proveedor, activo, created_at)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+    RETURNING id, nombre, descripcion, precio, stock, id_categoria, id_proveedor, activo, created_at
+  `
+  const result = await db.query(query, [nombre, descripcion || null, precio, stock, id_categoria, id_proveedor, true])
+  return result.rows[0]
+}
+
+export async function getProducto(id: number) {
+  const query = `
+    SELECT id, nombre, descripcion, precio, stock, id_categoria, id_proveedor, activo, created_at
+    FROM Producto WHERE id = $1
+  `
+  const result = await db.query(query, [id])
+  return result.rows[0] || null
+}
+
+export async function getProductos(limit = 50, activos_solo = true) {
+  let query = 'SELECT id, nombre, descripcion, precio, stock, id_categoria, id_proveedor, activo, created_at FROM Producto'
+  if (activos_solo) query += ' WHERE activo = true'
+  query += ' ORDER BY nombre LIMIT $1'
+  const result = await db.query(query, [limit])
+  return result.rows
+}
+
+export async function updateProducto(id: number, updates: Partial<{ nombre: string; descripcion: string; precio: number; stock: number; id_categoria: number; id_proveedor: number; activo: boolean }>) {
+  let query = 'UPDATE Producto SET'
+  const params: any[] = []
+  const updateParts: string[] = []
+
+  Object.entries(updates).forEach(([key, value]) => {
+    updateParts.push(`${key} = $${params.length + 1}`)
+    params.push(value)
+  })
+
+  if (updateParts.length === 0) return null
+
+  query += ' ' + updateParts.join(', ') + ` WHERE id = $${params.length + 1} RETURNING id, nombre, descripcion, precio, stock, id_categoria, id_proveedor, activo, created_at`
+  params.push(id)
+
+  const result = await db.query(query, params)
+  return result.rows[0] || null
+}
+
+export async function deleteProducto(id: number) {
+  const query = 'DELETE FROM Producto WHERE id = $1 RETURNING id'
+  const result = await db.query(query, [id])
+  return result.rows[0] || null
+}
+
+// ============================================================
+//  CRUD: CLIENTE
+// ============================================================
+
+export async function createCliente(nombre: string, email?: string, telefono?: string) {
+  const query = `
+    INSERT INTO Cliente (nombre, email, telefono, created_at)
+    VALUES ($1, $2, $3, NOW())
+    RETURNING id, nombre, email, telefono, created_at
+  `
+  const result = await db.query(query, [nombre, email || null, telefono || null])
+  return result.rows[0]
+}
+
+export async function getCliente(id: number) {
+  const query = `
+    SELECT id, nombre, email, telefono, created_at
+    FROM Cliente WHERE id = $1
+  `
+  const result = await db.query(query, [id])
+  return result.rows[0] || null
+}
+
+export async function getClientes(limit = 50) {
+  const query = `
+    SELECT id, nombre, email, telefono, created_at
+    FROM Cliente ORDER BY nombre LIMIT $1
+  `
+  const result = await db.query(query, [limit])
+  return result.rows
+}
+
+export async function updateCliente(id: number, nombre?: string, email?: string, telefono?: string) {
+  let query = 'UPDATE Cliente SET'
+  const params: (string | number)[] = []
+  const updates: string[] = []
+
+  if (nombre !== undefined) {
+    updates.push(`nombre = $${params.length + 1}`)
+    params.push(nombre)
+  }
+
+  if (email !== undefined) {
+    updates.push(`email = $${params.length + 1}`)
+    params.push(email)
+  }
+
+  if (telefono !== undefined) {
+    updates.push(`telefono = $${params.length + 1}`)
+    params.push(telefono)
+  }
+
+  if (updates.length === 0) return null
+
+  query += ' ' + updates.join(', ') + ` WHERE id = $${params.length + 1} RETURNING id, nombre, email, telefono, created_at`
+  params.push(id)
+
+  const result = await db.query(query, params)
+  return result.rows[0] || null
+}
+
+export async function deleteCliente(id: number) {
+  const query = 'DELETE FROM Cliente WHERE id = $1 RETURNING id'
+  const result = await db.query(query, [id])
+  return result.rows[0] || null
+}
+
+// ============================================================
+//  CRUD: EMPLEADO (vinculado a Better Auth user)
+// ============================================================
+
+export async function createEmpleado(user_id: string) {
+  const query = `
+    INSERT INTO Empleado (user_id, activo, created_at)
+    VALUES ($1, $2, NOW())
+    RETURNING id, user_id, activo, created_at
+  `
+  const result = await db.query(query, [user_id, true])
+  return result.rows[0]
+}
+
+export async function getEmpleado(id: number) {
+  const query = `
+    SELECT e.id, e.user_id, e.activo, e.created_at, u.name, u.email, u.rol
+    FROM Empleado e
+    JOIN "user" u ON u.id = e.user_id
+    WHERE e.id = $1
+  `
+  const result = await db.query(query, [id])
+  return result.rows[0] || null
+}
+
+export async function getEmpleados(limit = 50) {
+  const query = `
+    SELECT e.id, e.user_id, e.activo, e.created_at, u.name, u.email, u.rol
+    FROM Empleado e
+    JOIN "user" u ON u.id = e.user_id
+    ORDER BY u.name LIMIT $1
+  `
+  const result = await db.query(query, [limit])
+  return result.rows
+}
+
+export async function updateEmpleado(id: number, activo?: boolean) {
+  if (activo === undefined) return null
+
+  const query = `
+    UPDATE Empleado SET activo = $1 WHERE id = $2
+    RETURNING id, user_id, activo, created_at
+  `
+  const result = await db.query(query, [activo, id])
+  return result.rows[0] || null
+}
+
+export async function deleteEmpleado(id: number) {
+  const query = 'DELETE FROM Empleado WHERE id = $1 RETURNING id'
+  const result = await db.query(query, [id])
+  return result.rows[0] || null
+}
+
+// ============================================================
+//  CRUD: VENTA
+// ============================================================
+
+export async function createVenta(user_id: string, id_cliente?: number | null, total: number = 0) {
+  const query = `
+    INSERT INTO Venta (user_id, id_cliente, total, fecha, estado)
+    VALUES ($1, $2, $3, NOW(), 'completada')
+    RETURNING id, user_id, id_cliente, total, fecha, estado
+  `
+  const result = await db.query(query, [user_id, id_cliente || null, total])
+  return result.rows[0]
+}
+
+export async function getVenta(id: number) {
+  const query = `
+    SELECT id, user_id, id_cliente, total, fecha, estado
+    FROM Venta WHERE id = $1
+  `
+  const result = await db.query(query, [id])
+  return result.rows[0] || null
+}
+
+export async function getVentas(limit = 50) {
+  const query = `
+    SELECT id, user_id, id_cliente, total, fecha, estado
+    FROM Venta ORDER BY fecha DESC LIMIT $1
+  `
+  const result = await db.query(query, [limit])
+  return result.rows
+}
+
+export async function updateVenta(id: number, total?: number, estado?: string) {
+  let query = 'UPDATE Venta SET'
+  const params: (string | number)[] = []
+  const updates: string[] = []
+
+  if (total !== undefined) {
+    updates.push(`total = $${params.length + 1}`)
+    params.push(total)
+  }
+
+  if (estado !== undefined) {
+    updates.push(`estado = $${params.length + 1}`)
+    params.push(estado)
+  }
+
+  if (updates.length === 0) return null
+
+  query += ' ' + updates.join(', ') + ` WHERE id = $${params.length + 1} RETURNING id, user_id, id_cliente, total, fecha, estado`
+  params.push(id)
+
+  const result = await db.query(query, params)
+  return result.rows[0] || null
+}
+
+export async function deleteVenta(id: number) {
+  const query = 'DELETE FROM Venta WHERE id = $1 RETURNING id'
+  const result = await db.query(query, [id])
+  return result.rows[0] || null
+}
+
+// ============================================================
+//  CRUD: DETALLE VENTA
+// ============================================================
+
+export async function createDetalleVenta(id_venta: number, id_producto: number, cantidad: number, precio_unit: number) {
+  const query = `
+    INSERT INTO DetalleVenta (id_venta, id_producto, cantidad, precio_unit)
+    VALUES ($1, $2, $3, $4)
+    RETURNING id, id_venta, id_producto, cantidad, precio_unit, subtotal
+  `
+  const result = await db.query(query, [id_venta, id_producto, cantidad, precio_unit])
+  return result.rows[0]
+}
+
+export async function getDetalleVenta(id: number) {
+  const query = `
+    SELECT id, id_venta, id_producto, cantidad, precio_unit, subtotal
+    FROM DetalleVenta WHERE id = $1
+  `
+  const result = await db.query(query, [id])
+  return result.rows[0] || null
+}
+
+export async function getDetallesVenta(id_venta: number) {
+  const query = `
+    SELECT id, id_venta, id_producto, cantidad, precio_unit, subtotal
+    FROM DetalleVenta WHERE id_venta = $1 ORDER BY id
+  `
+  const result = await db.query(query, [id_venta])
+  return result.rows
+}
+
+export async function updateDetalleVenta(id: number, cantidad?: number, precio_unit?: number) {
+  let query = 'UPDATE DetalleVenta SET'
+  const params: (string | number)[] = []
+  const updates: string[] = []
+
+  if (cantidad !== undefined) {
+    updates.push(`cantidad = $${params.length + 1}`)
+    params.push(cantidad)
+  }
+
+  if (precio_unit !== undefined) {
+    updates.push(`precio_unit = $${params.length + 1}`)
+    params.push(precio_unit)
+  }
+
+  if (updates.length === 0) return null
+
+  query += ' ' + updates.join(', ') + ` WHERE id = $${params.length + 1} RETURNING id, id_venta, id_producto, cantidad, precio_unit, subtotal`
+  params.push(id)
+
+  const result = await db.query(query, params)
+  return result.rows[0] || null
+}
+
+export async function deleteDetalleVenta(id: number) {
+  const query = 'DELETE FROM DetalleVenta WHERE id = $1 RETURNING id'
+  const result = await db.query(query, [id])
+  return result.rows[0] || null
 }
