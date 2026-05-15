@@ -1,4 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
+
+import { json } from '#/lib/api/http'
 import { getDashboardData } from '../../lib/db'
 
 export const Route = createFileRoute('/api/')({
@@ -7,31 +9,22 @@ export const Route = createFileRoute('/api/')({
       GET: async () => {
         try {
           const data = await getDashboardData()
-
-          return new Response(
-            JSON.stringify({
-              ok: true,
-              data,
-            }),
-            {
-              status: 200,
-              headers: {
-                'Content-Type': 'application/json',
-              },
+          return json({
+            ok: true,
+            meta: {
+              openapi: '/openapi.json',
+              documentacion: '/api/docs',
+              humanDocs: '/docs/endpoints.md',
             },
-          )
+            data,
+          })
         } catch (error) {
-          return new Response(
-            JSON.stringify({
+          return json(
+            {
               ok: false,
               error: error instanceof Error ? error.message : 'Error interno',
-            }),
-            {
-              status: 500,
-              headers: {
-                'Content-Type': 'application/json',
-              },
             },
+            500,
           )
         }
       },

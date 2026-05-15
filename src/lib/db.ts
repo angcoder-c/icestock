@@ -1,7 +1,6 @@
-'use server'
-
 import pg from 'pg'
 import dotenv from 'dotenv'
+import { hashPassword } from 'better-auth/crypto'
 import { v4 as uuidv4 } from 'uuid'
 
 dotenv.config()
@@ -456,19 +455,27 @@ export async function deleteProveedor(id: number) {
 //  CRUD: PRODUCTO
 // ============================================================
 
-export async function createProducto(nombre: string, precio: number, id_categoria: number, id_proveedor: number, descripcion?: string, stock: number = 0) {
+export async function createProducto(
+  nombre: string,
+  precio: number,
+  id_categoria: number,
+  id_proveedor: number,
+  descripcion?: string,
+  stock: number = 0,
+  imagen_url?: string | null,
+) {
   const query = `
-    INSERT INTO Producto (nombre, descripcion, precio, stock, id_categoria, id_proveedor, activo, created_at)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-    RETURNING id, nombre, descripcion, precio, stock, id_categoria, id_proveedor, activo, created_at
+    INSERT INTO Producto (nombre, descripcion, precio, stock, id_categoria, id_proveedor, imagen_url, activo, created_at)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+    RETURNING id, nombre, descripcion, precio, stock, id_categoria, id_proveedor, imagen_url, activo, created_at
   `
-  const result = await db.query(query, [nombre, descripcion || null, precio, stock, id_categoria, id_proveedor, true])
+  const result = await db.query(query, [nombre, descripcion || null, precio, stock, id_categoria, id_proveedor, imagen_url ?? null, true])
   return result.rows[0]
 }
 
 export async function getProducto(id: number) {
   const query = `
-    SELECT id, nombre, descripcion, precio, stock, id_categoria, id_proveedor, activo, created_at
+    SELECT id, nombre, descripcion, precio, stock, id_categoria, id_proveedor, imagen_url, activo, created_at
     FROM Producto WHERE id = $1
   `
   const result = await db.query(query, [id])
@@ -476,14 +483,26 @@ export async function getProducto(id: number) {
 }
 
 export async function getProductos(limit = 50, activos_solo = true) {
-  let query = 'SELECT id, nombre, descripcion, precio, stock, id_categoria, id_proveedor, activo, created_at FROM Producto'
+  let query = 'SELECT id, nombre, descripcion, precio, stock, id_categoria, id_proveedor, imagen_url, activo, created_at FROM Producto'
   if (activos_solo) query += ' WHERE activo = true'
   query += ' ORDER BY nombre LIMIT $1'
   const result = await db.query(query, [limit])
   return result.rows
 }
 
-export async function updateProducto(id: number, updates: Partial<{ nombre: string; descripcion: string; precio: number; stock: number; id_categoria: number; id_proveedor: number; activo: boolean }>) {
+export async function updateProducto(
+  id: number,
+  updates: Partial<{
+    nombre: string
+    descripcion: string
+    precio: number
+    stock: number
+    id_categoria: number
+    id_proveedor: number
+    activo: boolean
+    imagen_url: string | null
+  }>,
+) {
   let query = 'UPDATE Producto SET'
   const params: any[] = []
   const updateParts: string[] = []
@@ -495,7 +514,10 @@ export async function updateProducto(id: number, updates: Partial<{ nombre: stri
 
   if (updateParts.length === 0) return null
 
-  query += ' ' + updateParts.join(', ') + ` WHERE id = $${params.length + 1} RETURNING id, nombre, descripcion, precio, stock, id_categoria, id_proveedor, activo, created_at`
+  query +=
+    ' ' +
+    updateParts.join(', ') +
+    ` WHERE id = $${params.length + 1} RETURNING id, nombre, descripcion, precio, stock, id_categoria, id_proveedor, imagen_url, activo, created_at`
   params.push(id)
 
   const result = await db.query(query, params)
@@ -538,6 +560,38 @@ export async function getClientes(limit = 50) {
   `
   const result = await db.query(query, [limit])
   return result.rows
+}
+
+/** Perfil de compra vinculado al correo del usuario (registro en Cliente). */
+export async function getOrCreateClienteForUser(opts: { nombre: string; email: string }) {
+  const email = opts.email.trim()
+  const nombre = opts.nombre.trim()
+  if (!email) throw new Error('El usuario no tiene correo para vincular la compra')
+  const find = await db.query(
+    `SELECT id, nombre, email, telefono FROM Cliente
+     WHERE email IS NOT NULL AND LOWER(TRIM(email)) = LOWER(TRIM($1)) LIMIT 1`,
+    [email],
+  )
+  if (find.rows[0]) return find.rows[0] as { id: number; nombre: string; email: string | null; telefono: string | null }
+  try {
+    const ins = await db.query(
+      `INSERT INTO Cliente (nombre, email, telefono, created_at)
+       VALUES ($1, $2, NULL, NOW())
+       RETURNING id, nombre, email, telefono`,
+      [nombre, email],
+    )
+    return ins.rows[0] as { id: number; nombre: string; email: string | null; telefono: string | null }
+  } catch (e) {
+    if (typeof e === 'object' && e !== null && 'code' in e && (e as { code: string }).code === '23505') {
+      const again = await db.query(
+        `SELECT id, nombre, email, telefono FROM Cliente
+         WHERE email IS NOT NULL AND LOWER(TRIM(email)) = LOWER(TRIM($1)) LIMIT 1`,
+        [email],
+      )
+      if (again.rows[0]) return again.rows[0] as { id: number; nombre: string; email: string | null; telefono: string | null }
+    }
+    throw e
+  }
 }
 
 export async function updateCliente(id: number, nombre?: string, email?: string, telefono?: string) {
@@ -750,4 +804,431 @@ export async function deleteDetalleVenta(id: number) {
   const query = 'DELETE FROM DetalleVenta WHERE id = $1 RETURNING id'
   const result = await db.query(query, [id])
   return result.rows[0] || null
+}
+
+// ============================================================
+//  API: conteos y reportes
+// ============================================================
+
+export async function countProductosByCategoria(categoriaId: number) {
+  const r = await db.query('SELECT COUNT(*)::int AS n FROM Producto WHERE id_categoria = $1', [categoriaId])
+  return r.rows[0].n as number
+}
+
+export async function countProductosByProveedor(proveedorId: number) {
+  const r = await db.query('SELECT COUNT(*)::int AS n FROM Producto WHERE id_proveedor = $1', [proveedorId])
+  return r.rows[0].n as number
+}
+
+export async function getVentasListApi(fecha_inicio?: string | null, fecha_fin?: string | null, limit = 500) {
+  const params: (string | number)[] = []
+  let i = 0
+  let where = 'WHERE 1=1'
+  if (fecha_inicio) {
+    i++
+    where += ` AND v.fecha >= $${i}::date`
+    params.push(fecha_inicio)
+  }
+  if (fecha_fin) {
+    i++
+    where += ` AND v.fecha < ($${i}::date + interval '1 day')`
+    params.push(fecha_fin)
+  }
+  i++
+  params.push(limit)
+  const query = `
+    SELECT
+      v.id,
+      v.fecha,
+      v.total,
+      v.estado,
+      c.nombre AS cliente,
+      u.name AS empleado
+    FROM Venta v
+    LEFT JOIN Cliente c ON c.id = v.id_cliente
+    JOIN "user" u ON u.id = v.user_id
+    ${where}
+    ORDER BY v.fecha DESC
+    LIMIT $${i}
+  `
+  const result = await db.query(query, params)
+  return result.rows
+}
+
+export async function getVentaDetalleApi(ventaId: number) {
+  const head = await db.query(
+    `
+      SELECT
+        v.id,
+        v.fecha,
+        v.total,
+        v.estado,
+        c.id AS cliente_id,
+        c.nombre AS cliente_nombre,
+        u.id AS empleado_id,
+        u.name AS empleado_nombre
+      FROM Venta v
+      LEFT JOIN Cliente c ON c.id = v.id_cliente
+      JOIN "user" u ON u.id = v.user_id
+      WHERE v.id = $1
+    `,
+    [ventaId],
+  )
+  if (head.rowCount === 0) return null
+  const h = head.rows[0]
+  const det = await db.query(
+    `
+      SELECT dv.id_producto, p.nombre AS producto, dv.cantidad, dv.precio_unit, dv.subtotal
+      FROM DetalleVenta dv
+      JOIN Producto p ON p.id = dv.id_producto
+      WHERE dv.id_venta = $1
+      ORDER BY dv.id
+    `,
+    [ventaId],
+  )
+  return { head: h, detalle: det.rows }
+}
+
+export async function anularVentaTransaccional(ventaId: number) {
+  const client = await db.connect()
+  try {
+    await client.query('BEGIN')
+    const v = await client.query('SELECT id, estado FROM Venta WHERE id = $1 FOR UPDATE', [ventaId])
+    if (v.rowCount === 0) {
+      throw Object.assign(new Error('Venta no encontrada'), { code: 'NOT_FOUND' })
+    }
+    if (v.rows[0].estado !== 'completada') {
+      throw new Error('La venta ya está anulada')
+    }
+    const dvs = await client.query(
+      'SELECT id_producto, cantidad FROM DetalleVenta WHERE id_venta = $1',
+      [ventaId],
+    )
+    for (const row of dvs.rows) {
+      await client.query('UPDATE Producto SET stock = stock + $1 WHERE id = $2', [
+        row.cantidad,
+        row.id_producto,
+      ])
+    }
+    await client.query(`UPDATE Venta SET estado = 'anulada' WHERE id = $1`, [ventaId])
+    await client.query('COMMIT')
+  } catch (e) {
+    await client.query('ROLLBACK')
+    throw e
+  } finally {
+    client.release()
+  }
+}
+
+export async function getProductosListApi(opts: {
+  categoria?: number | null
+  search?: string | null
+  stock_bajo?: boolean | null
+  incluir_inactivos?: boolean | null
+  limit?: number
+}) {
+  const limit = opts.limit ?? 200
+  const params: unknown[] = []
+  let where = 'WHERE 1=1'
+  if (!opts.incluir_inactivos) {
+    where += ' AND p.activo = TRUE'
+  }
+  if (opts.categoria != null) {
+    params.push(opts.categoria)
+    where += ` AND p.id_categoria = $${params.length}`
+  }
+  if (opts.search) {
+    params.push(`%${opts.search}%`)
+    where += ` AND p.nombre ILIKE $${params.length}`
+  }
+  if (opts.stock_bajo) {
+    where += ' AND p.stock < 20'
+  }
+  params.push(limit)
+  const query = `
+    SELECT
+      p.id,
+      p.nombre,
+      p.descripcion,
+      p.precio,
+      p.stock,
+      p.imagen_url,
+      p.activo,
+      c.id AS categoria_id,
+      c.nombre AS categoria_nombre,
+      pr.id AS proveedor_id,
+      pr.nombre AS proveedor_nombre
+    FROM Producto p
+    JOIN Categoria c ON c.id = p.id_categoria
+    JOIN Proveedor pr ON pr.id = p.id_proveedor
+    ${where}
+    ORDER BY p.nombre
+    LIMIT $${params.length}
+  `
+  const result = await db.query(query, params)
+  return result.rows
+}
+
+export async function getProductoEnriquecido(id: number) {
+  const result = await db.query(
+    `
+      SELECT
+        p.id,
+        p.nombre,
+        p.descripcion,
+        p.precio,
+        p.stock,
+        p.imagen_url,
+        p.activo,
+        c.id AS categoria_id,
+        c.nombre AS categoria_nombre,
+        pr.id AS proveedor_id,
+        pr.nombre AS proveedor_nombre
+      FROM Producto p
+      JOIN Categoria c ON c.id = p.id_categoria
+      JOIN Proveedor pr ON pr.id = p.id_proveedor
+      WHERE p.id = $1
+    `,
+    [id],
+  )
+  return result.rows[0] || null
+}
+
+export async function softDeleteProducto(id: number) {
+  const result = await db.query(
+    'UPDATE Producto SET activo = FALSE WHERE id = $1 RETURNING id',
+    [id],
+  )
+  return result.rows[0] || null
+}
+
+export async function getClienteConStats(id: number) {
+  const base = await getCliente(id)
+  if (!base) return null
+  const stats = await db.query(
+    `
+      SELECT
+        COUNT(*)::int AS total_compras,
+        COALESCE(SUM(total), 0) AS monto_total
+      FROM Venta
+      WHERE id_cliente = $1 AND estado = 'completada'
+    `,
+    [id],
+  )
+  const s = stats.rows[0]
+  return {
+    ...base,
+    total_compras: s.total_compras,
+    monto_total: s.monto_total,
+  }
+}
+
+export async function getReporteVentasDelDia(fecha?: string | null) {
+  const day = fecha || new Date().toISOString().slice(0, 10)
+  const list = await db.query(
+    `
+      SELECT venta_id, fecha, total, estado, cliente, empleado, producto, cantidad, precio_unit, subtotal, categoria
+      FROM vista_ventas_completa
+      WHERE fecha::date = $1::date
+      ORDER BY fecha DESC, venta_id DESC
+    `,
+    [day],
+  )
+  const agg = await db.query(
+    `
+      SELECT
+        COUNT(DISTINCT venta_id)::int AS total_ventas,
+        COALESCE(SUM(subtotal), 0) AS ingresos
+      FROM vista_ventas_completa
+      WHERE fecha::date = $1::date
+    `,
+    [day],
+  )
+  const a = agg.rows[0]
+  return {
+    fecha: day,
+    total_ventas: a.total_ventas,
+    ingresos: String(a.ingresos),
+    ventas: list.rows,
+  }
+}
+
+export async function getProductosMasVendidosApi(fecha_inicio?: string | null, fecha_fin?: string | null) {
+  const params: unknown[] = []
+  let dateFilter = ''
+  if (fecha_inicio) {
+    params.push(fecha_inicio)
+    dateFilter += ` AND v.fecha >= $${params.length}::date`
+  }
+  if (fecha_fin) {
+    params.push(fecha_fin)
+    dateFilter += ` AND v.fecha < ($${params.length}::date + interval '1 day')`
+  }
+  const query = `
+    WITH ventas_filtradas AS (
+      SELECT dv.id_producto, dv.cantidad, dv.subtotal, p.nombre, cat.nombre AS categoria
+      FROM DetalleVenta dv
+      JOIN Venta v ON v.id = dv.id_venta AND v.estado = 'completada'
+      JOIN Producto p ON p.id = dv.id_producto
+      JOIN Categoria cat ON cat.id = p.id_categoria
+      WHERE 1=1 ${dateFilter}
+    ),
+    agg AS (
+      SELECT
+        id_producto,
+        MAX(nombre) AS producto,
+        MAX(categoria) AS categoria,
+        SUM(cantidad)::bigint AS total_vendido,
+        SUM(subtotal) AS ingresos
+      FROM ventas_filtradas
+      GROUP BY id_producto
+    )
+    SELECT
+      ROW_NUMBER() OVER (ORDER BY ingresos DESC NULLS LAST, producto) AS rank,
+      id_producto,
+      producto,
+      categoria,
+      total_vendido,
+      ingresos
+    FROM agg
+    ORDER BY rank
+    LIMIT 50
+  `
+  const result = await db.query(query, params)
+  return result.rows
+}
+
+export async function getStockDisponibleApi() {
+  const result = await db.query(`
+    SELECT id, nombre AS producto, stock, (stock < 20) AS alerta
+    FROM Producto
+    WHERE activo = TRUE
+    ORDER BY stock ASC, nombre
+  `)
+  return result.rows
+}
+
+export async function getVentasPorCategoriaReporteApi() {
+  const result = await db.query(`
+    SELECT
+      cat.nombre AS categoria,
+      SUM(dv.cantidad)::bigint AS total_vendido,
+      SUM(dv.subtotal) AS ingresos
+    FROM DetalleVenta dv
+    JOIN Venta v ON v.id = dv.id_venta AND v.estado = 'completada'
+    JOIN Producto p ON p.id = dv.id_producto
+    JOIN Categoria cat ON cat.id = p.id_categoria
+    GROUP BY cat.id, cat.nombre
+    HAVING SUM(dv.subtotal) > 0
+    ORDER BY ingresos DESC
+  `)
+  return result.rows
+}
+
+export async function getClientesFrecuentesApi() {
+  const result = await db.query(`
+    SELECT c.id, c.nombre,
+           COUNT(v.id)::int AS total_compras,
+           COALESCE(SUM(v.total), 0) AS monto_total
+    FROM Cliente c
+    JOIN Venta v ON v.id_cliente = c.id AND v.estado = 'completada'
+    WHERE c.id IN (
+      SELECT id_cliente
+      FROM Venta
+      WHERE id_cliente IS NOT NULL AND estado = 'completada'
+      GROUP BY id_cliente
+      HAVING COUNT(*) > 3
+    )
+    GROUP BY c.id, c.nombre
+    ORDER BY total_compras DESC
+  `)
+  return result.rows
+}
+
+export async function findUserByEmail(email: string) {
+  const r = await db.query('SELECT id FROM "user" WHERE LOWER(email) = LOWER($1)', [email])
+  return r.rows[0]?.id as string | undefined
+}
+
+export async function createUserAccountAndEmpleado(input: {
+  nombre: string
+  email: string
+  password: string
+  rol: string
+}) {
+  const existing = await findUserByEmail(input.email)
+  if (existing) {
+    throw Object.assign(new Error('El email ya está registrado'), { code: 'DUPLICATE' })
+  }
+  const userId = `usr_${uuidv4().replace(/-/g, '').slice(0, 12)}`
+  const accountId = `acc_${uuidv4().replace(/-/g, '').slice(0, 12)}`
+  const hashed = await hashPassword(input.password)
+  const client = await db.connect()
+  try {
+    await client.query('BEGIN')
+    await client.query(
+      `
+        INSERT INTO "user" (id, name, email, "emailVerified", image, "createdAt", "updatedAt", rol)
+        VALUES ($1, $2, $3, FALSE, NULL, NOW(), NOW(), $4)
+      `,
+      [userId, input.nombre, input.email.toLowerCase(), input.rol],
+    )
+    await client.query(
+      `
+        INSERT INTO account (id, "accountId", "providerId", "userId", password, "createdAt", "updatedAt")
+        VALUES ($1, $2, 'credential', $3, $4, NOW(), NOW())
+      `,
+      [accountId, input.email.toLowerCase(), userId, hashed],
+    )
+    await client.query(
+      `INSERT INTO Empleado (user_id, activo, created_at) VALUES ($1, TRUE, NOW())`,
+      [userId],
+    )
+    await client.query('COMMIT')
+    return { user_id: userId, nombre: input.nombre, rol: input.rol }
+  } catch (e) {
+    await client.query('ROLLBACK')
+    throw e
+  } finally {
+    client.release()
+  }
+}
+
+export async function updateUserEmpleadoProfile(userId: string, nombre?: string, rol?: string) {
+  const parts: string[] = []
+  const params: unknown[] = []
+  if (nombre !== undefined) {
+    params.push(nombre)
+    parts.push(`"name" = $${params.length}`)
+  }
+  if (rol !== undefined) {
+    params.push(rol)
+    parts.push(`rol = $${params.length}`)
+  }
+  if (parts.length === 0) return null
+  params.push(userId)
+  const q = `UPDATE "user" SET ${parts.join(', ')}, "updatedAt" = NOW() WHERE id = $${params.length} RETURNING id, name, rol`
+  const r = await db.query(q, params)
+  return r.rows[0] || null
+}
+
+export async function deactivateEmpleadoByUserId(userId: string) {
+  const r = await db.query(
+    'UPDATE Empleado SET activo = FALSE WHERE user_id = $1 RETURNING id',
+    [userId],
+  )
+  return r.rows[0] || null
+}
+
+export async function getEmpleadoByUserId(userId: string) {
+  const r = await db.query(
+    `
+      SELECT e.id, e.user_id, e.activo, e.created_at, u.name, u.email, u.rol
+      FROM Empleado e
+      JOIN "user" u ON u.id = e.user_id
+      WHERE e.user_id = $1
+    `,
+    [userId],
+  )
+  return r.rows[0] || null
 }
