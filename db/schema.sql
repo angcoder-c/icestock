@@ -10,52 +10,52 @@
 -- ============================================================
 
 CREATE TABLE "user" (
-    id                TEXT PRIMARY KEY,
-    name              TEXT NOT NULL,
-    email             TEXT NOT NULL UNIQUE,
-    email_verified    BOOLEAN NOT NULL DEFAULT FALSE,
-    image             TEXT,
-    created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "id"            TEXT PRIMARY KEY,
+    "name"          TEXT NOT NULL,
+    "email"         TEXT NOT NULL UNIQUE,
+    "emailVerified" BOOLEAN NOT NULL DEFAULT FALSE,
+    "image"         TEXT,
+    "createdAt"     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "updatedAt"     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     -- campo extra para rol dentro de la heladería
-    rol               TEXT NOT NULL DEFAULT 'cajero'
-                      CHECK (rol IN ('admin', 'cajero'))
+    "rol"           TEXT NOT NULL DEFAULT 'cajero'
+                    CHECK ("rol" IN ('admin', 'cajero', 'cliente'))
 );
 
 CREATE TABLE session (
-    id          TEXT PRIMARY KEY,
-    expires_at  TIMESTAMPTZ NOT NULL,
-    token       TEXT NOT NULL UNIQUE,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    ip_address  TEXT,
-    user_agent  TEXT,
-    user_id     TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE
+    "id"          TEXT PRIMARY KEY,
+    "expiresAt"   TIMESTAMPTZ NOT NULL,
+    "token"       TEXT NOT NULL UNIQUE,
+    "createdAt"   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "updatedAt"   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "ipAddress"   TEXT,
+    "userAgent"   TEXT,
+    "userId"      TEXT NOT NULL REFERENCES "user"("id") ON DELETE CASCADE
 );
 
 CREATE TABLE account (
-    id                       TEXT PRIMARY KEY,
-    account_id               TEXT NOT NULL,
-    provider_id              TEXT NOT NULL,
-    user_id                  TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
-    access_token             TEXT,
-    refresh_token            TEXT,
-    id_token                 TEXT,
-    access_token_expires_at  TIMESTAMPTZ,
-    refresh_token_expires_at TIMESTAMPTZ,
-    scope                    TEXT,
-    password                 TEXT,   -- hash bcrypt gestionado por Better Auth
-    created_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at               TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    "id"                    TEXT PRIMARY KEY,
+    "accountId"             TEXT NOT NULL,
+    "providerId"            TEXT NOT NULL,
+    "userId"                TEXT NOT NULL REFERENCES "user"("id") ON DELETE CASCADE,
+    "accessToken"           TEXT,
+    "refreshToken"          TEXT,
+    "idToken"               TEXT,
+    "accessTokenExpiresAt"  TIMESTAMPTZ,
+    "refreshTokenExpiresAt" TIMESTAMPTZ,
+    "scope"                 TEXT,
+    "password"              TEXT,
+    "createdAt"             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "updatedAt"             TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE Verification (
-    id          TEXT PRIMARY KEY,
-    identifier  TEXT NOT NULL,
-    value       TEXT NOT NULL,
-    expires_at  TIMESTAMPTZ NOT NULL,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    "id"        TEXT PRIMARY KEY,
+    "identifier" TEXT NOT NULL,
+    "value"     TEXT NOT NULL,
+    "expiresAt" TIMESTAMPTZ NOT NULL,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ============================================================
@@ -91,10 +91,10 @@ CREATE TABLE Producto (
 -- empleado guarda solo el perfil del negocio;
 -- la autenticación la maneja Better Auth via "user"
 CREATE TABLE Empleado (
-    id         SERIAL PRIMARY KEY,
-    user_id    TEXT NOT NULL UNIQUE REFERENCES "user"(id) ON DELETE CASCADE,
-    activo     BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    id        SERIAL PRIMARY KEY,
+    "userId"    TEXT NOT NULL UNIQUE REFERENCES "user"("id") ON DELETE CASCADE,
+    activo    BOOLEAN NOT NULL DEFAULT TRUE,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE Cliente (
@@ -106,13 +106,13 @@ CREATE TABLE Cliente (
 );
 
 CREATE TABLE Venta (
-    id          SERIAL PRIMARY KEY,
-    id_cliente  INTEGER REFERENCES Cliente(id),
-    user_id     TEXT NOT NULL REFERENCES "user"(id),   -- empleado que hizo la venta
-    total       NUMERIC(10, 2) NOT NULL DEFAULT 0,
-    fecha       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    estado      VARCHAR(20) NOT NULL DEFAULT 'completada'
-                CHECK (estado IN ('completada', 'anulada'))
+    id        SERIAL PRIMARY KEY,
+    idCliente INTEGER REFERENCES Cliente(id),
+    "userId"    TEXT NOT NULL REFERENCES "user"("id"),
+    total     NUMERIC(10, 2) NOT NULL DEFAULT 0,
+    fecha     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    estado    VARCHAR(20) NOT NULL DEFAULT 'completada'
+              CHECK (estado IN ('completada', 'anulada'))
 );
 
 CREATE TABLE DetalleVenta (
@@ -128,17 +128,17 @@ CREATE TABLE DetalleVenta (
 --  ÍNDICES
 -- ============================================================
 
--- Better Auth necesita lookups rápidos por token y user_id
-CREATE INDEX idx_session_user_id     ON session(user_id);
-CREATE INDEX idx_session_token       ON session(token);
-CREATE INDEX idx_account_user_id     ON account(user_id);
+-- Better Auth necesita lookups rápidos por token y userId
+CREATE INDEX idx_session_userId    ON session("userId");
+CREATE INDEX idx_session_token      ON session("token");
+CREATE INDEX idx_account_userId     ON account("userId");
 
 -- Negocio
-CREATE INDEX idx_empleado_user_id   ON Empleado(user_id);
+CREATE INDEX idx_empleado_userId   ON Empleado("userId");
 CREATE INDEX idx_producto_categoria ON Producto(id_categoria);
 CREATE INDEX idx_producto_proveedor ON Producto(id_proveedor);
 CREATE INDEX idx_venta_fecha        ON Venta(fecha);
-CREATE INDEX idx_venta_user_id      ON Venta(user_id);
+CREATE INDEX idx_venta_userId       ON Venta("userId");
 CREATE INDEX idx_detalleventa_venta ON DetalleVenta(id_venta);
 CREATE INDEX idx_detalleventa_prod  ON DetalleVenta(id_producto);
 
@@ -153,19 +153,19 @@ SELECT
     v.total,
     v.estado,
     c.nombre             AS cliente,
-    u.name               AS empleado,
-    u.rol                AS rol_empleado,
+    u."name"               AS empleado,
+    u."rol"                AS rol_empleado,
     p.nombre             AS producto,
     dv.cantidad,
     dv.precio_unit,
     dv.subtotal,
     cat.nombre           AS categoria
 FROM Venta v
-LEFT  JOIN Cliente       c   ON c.id   = v.id_cliente
-JOIN  "user"             u   ON u.id   = v.user_id
+LEFT  JOIN Cliente       c   ON c.id     = v.idCliente
+JOIN  "user"             u   ON u."id"     = v."userId"
 JOIN  DetalleVenta       dv  ON dv.id_venta  = v.id
-JOIN  Producto          p   ON p.id   = dv.id_producto
-JOIN  Categoria         cat ON cat.id = p.id_categoria;
+JOIN  Producto          p   ON p.id     = dv.id_producto
+JOIN  Categoria         cat ON cat.id   = p.id_categoria;
 
 -- ============================================================
 --  DATOS DE PRUEBA
@@ -195,28 +195,28 @@ INSERT INTO Proveedor (nombre, telefono, email, direccion) VALUES
 
 -- Usuarios seed (en producción Better Auth los crea vía sign-up)
 -- password de todos: "secret123"  →  genera el hash real con bcrypt antes de subir
-INSERT INTO "user" (id, name, email, email_verified, rol) VALUES
-  ('usr_admin_001', 'Admin Sistema', 'admin@heladeria.com',  TRUE, 'admin'),
-  ('usr_emp_002',   'María López',   'maria@heladeria.com',  TRUE, 'cajero'),
-  ('usr_emp_003',   'Carlos Pérez',  'carlos@heladeria.com', TRUE, 'cajero'),
-  ('usr_emp_004',   'Ana García',    'ana@heladeria.com',    TRUE, 'cajero'),
-  ('usr_emp_005',   'Luis Torres',   'luis@heladeria.com',   TRUE, 'cajero');
+INSERT INTO "user" ("id", "name", "email", "emailVerified", "rol") VALUES
+    ('usr_admin_001', 'Admin Sistema', 'admin@heladeria.com',  TRUE, 'admin'),
+    ('usr_emp_002',   'María López',   'maria@heladeria.com',  TRUE, 'cajero'),
+    ('usr_emp_003',   'Carlos Pérez',  'carlos@heladeria.com', TRUE, 'cajero'),
+    ('usr_emp_004',   'Ana García',    'ana@heladeria.com',    TRUE, 'cajero'),
+    ('usr_emp_005',   'Luis Torres',   'luis@heladeria.com',   TRUE, 'cajero');
 
-INSERT INTO account (id, account_id, provider_id, user_id, password) VALUES
-  ('acc_001', 'admin@heladeria.com',  'credential', 'usr_admin_001', '$2b$10$HASH_PLACEHOLDER'),
-  ('acc_002', 'maria@heladeria.com',  'credential', 'usr_emp_002',   '$2b$10$HASH_PLACEHOLDER'),
-  ('acc_003', 'carlos@heladeria.com', 'credential', 'usr_emp_003',   '$2b$10$HASH_PLACEHOLDER'),
-  ('acc_004', 'ana@heladeria.com',    'credential', 'usr_emp_004',   '$2b$10$HASH_PLACEHOLDER'),
-  ('acc_005', 'luis@heladeria.com',   'credential', 'usr_emp_005',   '$2b$10$HASH_PLACEHOLDER');
+INSERT INTO account ("id", "accountId", "providerId", "userId", "password") VALUES
+    ('acc_001', 'admin@heladeria.com',  'credential', 'usr_admin_001', '224a3875e5da8921bd54b6b340ce51cc:94b8e5efc4738c8de1f1a0f2928b3929a288b738a3c75855da6ca20c0762e64d662fb638ae512b76b20e57b364c3ea5fdabac9b4df68bfd0cb53486525fa6d20'),
+    ('acc_002', 'maria@heladeria.com',  'credential', 'usr_emp_002',   '224a3875e5da8921bd54b6b340ce51cc:94b8e5efc4738c8de1f1a0f2928b3929a288b738a3c75855da6ca20c0762e64d662fb638ae512b76b20e57b364c3ea5fdabac9b4df68bfd0cb53486525fa6d20'),
+    ('acc_003', 'carlos@heladeria.com', 'credential', 'usr_emp_003',   '224a3875e5da8921bd54b6b340ce51cc:94b8e5efc4738c8de1f1a0f2928b3929a288b738a3c75855da6ca20c0762e64d662fb638ae512b76b20e57b364c3ea5fdabac9b4df68bfd0cb53486525fa6d20'),
+    ('acc_004', 'ana@heladeria.com',    'credential', 'usr_emp_004',   '224a3875e5da8921bd54b6b340ce51cc:94b8e5efc4738c8de1f1a0f2928b3929a288b738a3c75855da6ca20c0762e64d662fb638ae512b76b20e57b364c3ea5fdabac9b4df68bfd0cb53486525fa6d20'),
+    ('acc_005', 'luis@heladeria.com',   'credential', 'usr_emp_005',   '224a3875e5da8921bd54b6b340ce51cc:94b8e5efc4738c8de1f1a0f2928b3929a288b738a3c75855da6ca20c0762e64d662fb638ae512b76b20e57b364c3ea5fdabac9b4df68bfd0cb53486525fa6d20');
 -- Reemplaza $2b$10$HASH_PLACEHOLDER con:
 --   node -e "require('bcrypt').hash('secret123',10).then(console.log)"
 
-INSERT INTO Empleado (user_id) VALUES
-  ('usr_admin_001'),
-  ('usr_emp_002'),
-  ('usr_emp_003'),
-  ('usr_emp_004'),
-  ('usr_emp_005');
+INSERT INTO Empleado ("userId") VALUES
+    ('usr_admin_001'),
+    ('usr_emp_002'),
+    ('usr_emp_003'),
+    ('usr_emp_004'),
+    ('usr_emp_005');
 
 INSERT INTO Cliente (nombre, email, telefono) VALUES
   ('Juan Ramírez',   'juan@mail.com',    '5500-0001'),
@@ -277,8 +277,8 @@ INSERT INTO Producto (nombre, descripcion, precio, stock, id_categoria, id_prove
 -- ============================================================
 
 CREATE OR REPLACE FUNCTION registrar_venta(
-    p_user_id    TEXT,
-    p_id_cliente INTEGER,
+    p_userId    TEXT,
+    p_idCliente INTEGER,
     p_items      JSONB     -- [{id_producto, cantidad}]
 )
 RETURNS INTEGER
@@ -308,8 +308,8 @@ BEGIN
     END LOOP;
 
     -- Cabecera de la venta
-    INSERT INTO Venta (user_id, id_cliente, total)
-    VALUES (p_user_id, p_id_cliente, 0)
+    INSERT INTO Venta ("userId", "idCliente", "total")
+    VALUES (p_userId, p_idCliente, 0)
     RETURNING id INTO v_id;
 
     -- Detalle + descuento de stock
