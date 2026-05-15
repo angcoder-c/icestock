@@ -1,11 +1,10 @@
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import { devtools } from '@tanstack/devtools-vite'
 
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 
 import viteReact from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-import { cloudflare } from '@cloudflare/vite-plugin'
 
 const config = defineConfig({
   resolve: { tsconfigPaths: true },
@@ -23,6 +22,12 @@ const config = defineConfig({
     tanstackStart(),
     viteReact(),
   ],
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    exclude: ['**/node_modules/**', '**/dist/**', 'tests/**'],
+    include: ['src/**/*.test.{ts,tsx}'],
+  },
 })
 
 export default config
