@@ -17,13 +17,34 @@ To build this application for production:
 npm run build
 ```
 
-## Testing
+## API REST (negocio)
 
-This project uses [Vitest](https://vitest.dev/) for testing. You can run the tests with:
+- **Documentación humana**: [docs/endpoints.md](docs/endpoints.md)
+- **OpenAPI 3** (misma especificación en dos sitios): [public/openapi.json](public/openapi.json) (sirve Vite en `/openapi.json`) y [docs/openapi.json](docs/openapi.json)
+- **Metadatos de documentación (JSON)**: `GET /api/docs` devuelve JSON con el enlace al spec (`openapi`) y una nota de uso; importa `/openapi.json` en Postman, Stoplight o Swagger Editor para explorar el contrato.
+- **Resumen agregado (dashboard)**: `GET /api/` devuelve datos de ejemplo para gráficos y enlaces en `meta` (`openapi`, `documentacion`, `humanDocs`).
 
-```bash
-npm run test
-```
+Las rutas bajo `/api/categorias`, `/api/productos`, `/api/ventas`, etc. requieren sesión Better Auth (inicia sesión vía `POST /api/auth/sign-in/email` y cookie).
+
+### Imágenes de productos y Cloudinary
+
+- **Columna** `Producto.imagen_url` (texto, opcional): URL pública de la foto.
+- **Datos de prueba**: el `db/schema.sql` asigna la misma imagen de ejemplo a todos los productos seed; si ya tenías una base creada antes, ejecuta `db/migrations/001_producto_imagen_url.sql` sobre PostgreSQL.
+- **Subida**: `POST /api/upload/imagen` (multipart `file`, opcional `id_producto`) sube a Cloudinary y, si mandas `id_producto`, actualiza ese producto. Solo **personal** (`admin` / `cajero`), no clientes. Configura `CLOUDINARY_URL` en `.env` (formato `cloudinary://API_KEY:API_SECRET@cloud_name`, ver `.env.example`).
+
+### Frontend (rúbrica React)
+
+- **Context** (`IcestockProvider`): sesión Better Auth + carrito global.
+- **useReducer**: carrito (`cart-reducer.ts`) — líneas, cantidades, drawer; cada línea puede llevar `imagen_url` para miniaturas.
+- **useCallback / useMemo**: handlers de carrito en contexto; totales y filtros memoizados en la UI.
+- **TanStack Query**: productos (`/api/productos`) y reporte del día (`/api/reportes/ventas-del-dia`); mutación `POST /api/ventas` al confirmar pedido.
+- **Formularios controlados**: acceso en `/login` (elegir perfil), `/login/cliente` y `/login/empleado`; datos del pedido en el POS de tienda con validación (`validation/order-form.ts`).
+- **Prueba de integración (Vitest)**: `src/icestock.integration.test.ts` — reducer + validación + hook con `fetch` simulado.
+
+### Pruebas
+
+- **Vitest** (componentes / proyecto): `npm run test`
+- **Jest** (contrato OpenAPI + helpers HTTP): `npm run test:jest`
 
 ## Styling
 

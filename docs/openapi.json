@@ -1,0 +1,263 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Icestock — Heladería Frío & Punto API",
+    "version": "1.0.0",
+    "description": "REST API alineada con `docs/endpoints.md`. Todas las respuestas de negocio bajo `/api` son JSON (`application/json`); no se usan 204 ni cuerpos vacíos. Autenticación: sesión Better Auth (cookie). Tras `POST /api/auth/sign-in/email`, el navegador envía la cookie automáticamente."
+  },
+  "servers": [{ "url": "http://localhost:3000", "description": "Vite dev (ajusta el puerto si cambias `npm run dev`)" }],
+  "tags": [
+    { "name": "Categorías" },
+    { "name": "Productos" },
+    { "name": "Proveedores" },
+    { "name": "Clientes" },
+    { "name": "Ventas" },
+    { "name": "Empleados" },
+    { "name": "Reportes" },
+    { "name": "Meta" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "betterAuthCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "better-auth.session_token",
+        "description": "Cookie de sesión emitida por Better Auth (`sign-in/email`)."
+      }
+    },
+    "schemas": {
+      "ErrorJson": {
+        "type": "object",
+        "properties": { "error": { "type": "string" } },
+        "required": ["error"]
+      },
+      "Categoria": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "nombre": { "type": "string" },
+          "descripcion": { "type": "string", "nullable": true }
+        }
+      },
+      "Producto": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "nombre": { "type": "string" },
+          "descripcion": { "type": "string", "nullable": true },
+          "precio": { "type": "string", "example": "15.00" },
+          "stock": { "type": "integer" },
+          "activo": { "type": "boolean" },
+          "categoria": { "type": "object" },
+          "proveedor": { "type": "object" }
+        }
+      }
+    }
+  },
+  "security": [{ "betterAuthCookie": [] }],
+  "paths": {
+    "/api/": {
+      "get": {
+        "tags": ["Meta"],
+        "summary": "Resumen dashboard (datos demo + enlaces OpenAPI)",
+        "security": [],
+        "responses": {
+          "200": { "description": "Payload con `data` agregada para UI tipo dashboard" }
+        }
+      }
+    },
+    "/api/docs": {
+      "get": {
+        "tags": ["Meta"],
+        "summary": "Metadatos de documentación (JSON)",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "JSON con enlaces al spec OpenAPI y nota de uso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": { "type": "boolean" },
+                    "openapi": { "type": "string" },
+                    "mensaje": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/categorias": {
+      "get": {
+        "tags": ["Categorías"],
+        "summary": "Listar categorías",
+        "responses": {
+          "200": { "description": "OK" },
+          "401": { "description": "No autenticado", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorJson" } } } }
+        }
+      },
+      "post": {
+        "tags": ["Categorías"],
+        "summary": "Crear categoría",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "type": "object", "required": ["nombre"], "properties": { "nombre": { "type": "string" }, "descripcion": { "type": "string" } } }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Creada" },
+          "400": { "description": "Validación", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorJson" } } } },
+          "401": { "description": "No autenticado" }
+        }
+      }
+    },
+    "/api/categorias/{id}": {
+      "put": {
+        "tags": ["Categorías"],
+        "summary": "Actualizar categoría",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "OK" }, "404": { "description": "No encontrada" } }
+      },
+      "delete": {
+        "tags": ["Categorías"],
+        "summary": "Eliminar categoría (409 si hay productos)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Eliminada" }, "409": { "description": "Conflicto FK" } }
+      }
+    },
+    "/api/productos": {
+      "get": {
+        "tags": ["Productos"],
+        "summary": "Listar productos (filtros opcionales)",
+        "parameters": [
+          { "name": "categoria", "in": "query", "schema": { "type": "integer" } },
+          { "name": "search", "in": "query", "schema": { "type": "string" } },
+          { "name": "stock_bajo", "in": "query", "schema": { "type": "boolean" } },
+          { "name": "incluir_inactivos", "in": "query", "schema": { "type": "boolean" } }
+        ],
+        "responses": { "200": { "description": "Lista", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Producto" } } } } } }
+      },
+      "post": {
+        "tags": ["Productos"],
+        "summary": "Crear producto",
+        "responses": { "201": { "description": "Creado" }, "400": { "description": "Validación" } }
+      }
+    },
+    "/api/productos/{id}": {
+      "get": {
+        "tags": ["Productos"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "OK" }, "404": { "description": "No encontrado" } }
+      },
+      "put": {
+        "tags": ["Productos"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "OK" } }
+      },
+      "delete": {
+        "tags": ["Productos"],
+        "summary": "Baja lógica (activo=false)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Desactivado" } }
+      }
+    },
+    "/api/proveedores": {
+      "get": { "tags": ["Proveedores"], "summary": "Listar proveedores", "responses": { "200": { "description": "OK" } } },
+      "post": { "tags": ["Proveedores"], "summary": "Crear proveedor", "responses": { "201": { "description": "Creado" } } }
+    },
+    "/api/proveedores/{id}": {
+      "put": { "tags": ["Proveedores"], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "OK" } } },
+      "delete": { "tags": ["Proveedores"], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "OK" }, "409": { "description": "Tiene productos" } } }
+    },
+    "/api/clientes": {
+      "get": { "tags": ["Clientes"], "summary": "Listar clientes", "responses": { "200": { "description": "OK" } } },
+      "post": { "tags": ["Clientes"], "summary": "Crear cliente", "responses": { "201": { "description": "Creado" } } }
+    },
+    "/api/clientes/{id}": {
+      "get": { "tags": ["Clientes"], "summary": "Detalle + estadísticas de compras", "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "OK" } } },
+      "put": { "tags": ["Clientes"], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "OK" } } },
+      "delete": { "tags": ["Clientes"], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "OK" } } }
+    },
+    "/api/ventas": {
+      "get": {
+        "tags": ["Ventas"],
+        "summary": "Listar ventas (rango de fechas opcional)",
+        "parameters": [
+          { "name": "fecha_inicio", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "fecha_fin", "in": "query", "schema": { "type": "string", "format": "date" } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      },
+      "post": {
+        "tags": ["Ventas"],
+        "summary": "Registrar venta (transacción + stock)",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id_cliente": { "type": "integer", "nullable": true },
+                  "items": { "type": "array", "items": { "type": "object", "required": ["id_producto", "cantidad"], "properties": { "id_producto": { "type": "integer" }, "cantidad": { "type": "integer", "minimum": 1 } } } }
+                },
+                "required": ["items"]
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Creada" }, "400": { "description": "Stock u otra validación" } }
+      }
+    },
+    "/api/ventas/{id}": {
+      "get": { "tags": ["Ventas"], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "Detalle con líneas" } } },
+      "delete": {
+        "tags": ["Ventas"],
+        "summary": "Anular venta y restaurar stock (solo admin)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Anulada" }, "403": { "description": "No admin" } }
+      }
+    },
+    "/api/empleados": {
+      "get": { "tags": ["Empleados"], "summary": "Listar empleados (solo admin)", "responses": { "200": { "description": "OK" }, "403": { "description": "No admin" } } },
+      "post": { "tags": ["Empleados"], "summary": "Alta empleado (user + account + fila Empleado)", "responses": { "201": { "description": "Creado" }, "400": { "description": "Email duplicado" } } }
+    },
+    "/api/empleados/{userId}": {
+      "put": { "tags": ["Empleados"], "parameters": [{ "name": "userId", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "OK" } } },
+      "delete": { "tags": ["Empleados"], "summary": "Desactivar empleado", "parameters": [{ "name": "userId", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "OK" } } }
+    },
+    "/api/reportes/ventas-del-dia": {
+      "get": {
+        "tags": ["Reportes"],
+        "summary": "Agregación ventas del día (vista + totales)",
+        "parameters": [{ "name": "fecha", "in": "query", "schema": { "type": "string", "format": "date" } }],
+        "responses": { "200": { "description": "total_ventas, ingresos, detalle" } }
+      }
+    },
+    "/api/reportes/productos-mas-vendidos": {
+      "get": {
+        "tags": ["Reportes"],
+        "summary": "Ranking por ingresos (CTE)",
+        "parameters": [
+          { "name": "fecha_inicio", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "fecha_fin", "in": "query", "schema": { "type": "string", "format": "date" } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/reportes/stock-disponible": {
+      "get": { "tags": ["Reportes"], "summary": "Stock con bandera alerta (<20)", "responses": { "200": { "description": "OK" } } }
+    },
+    "/api/reportes/ventas-por-categoria": {
+      "get": { "tags": ["Reportes"], "summary": "GROUP BY categoría + HAVING", "responses": { "200": { "description": "OK" } } }
+    },
+    "/api/reportes/clientes-frecuentes": {
+      "get": { "tags": ["Reportes"], "summary": "Clientes con >3 compras (subquery)", "responses": { "200": { "description": "OK" } } }
+    }
+  }
+}

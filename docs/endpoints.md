@@ -1,18 +1,24 @@
-# API Endpoints — Heladería "Frío & Punto"
+# API Endpoints
 
-Base URL: `http://localhost:4000`
+**OpenAPI:** especificación [public/openapi.json](../public/openapi.json) (expuesta en `/openapi.json` con `npm run dev`). **Metadatos:** `GET /api/docs` devuelve JSON con la URL del spec. Resumen en el [README](../README.md#api-rest-negocio).
+
+**Contrato:** todas las respuestas de negocio bajo `/api` son JSON (`application/json`); no se usan códigos sin cuerpo (p. ej. 204). La subida `POST /api/upload/imagen` acepta `multipart/form-data` pero responde JSON.
+
+Base URL: `http://localhost:3000` (Vite por defecto; ajusta si usas otro puerto)
 
 ---
 
 ## Auth — Better Auth
 
-Better Auth expone sus rutas automáticamente en `/api/auth/*`.
+Better Auth expone sus rutas automáticamente en `/api/auth/`*.
 El frontend usa el cliente oficial `better-auth/client`; **no llames estos endpoints manualmente**.
 
 ### POST `/api/auth/sign-in/email`
+
 Inicia sesión. Better Auth crea la sesión y devuelve una cookie `better-auth.session_token`.
 
 **Request body**
+
 ```json
 {
   "email": "admin@heladeria.com",
@@ -21,6 +27,7 @@ Inicia sesión. Better Auth crea la sesión y devuelve una cookie `better-auth.s
 ```
 
 **Response 200**
+
 ```json
 {
   "user": {
@@ -42,11 +49,13 @@ Inicia sesión. Better Auth crea la sesión y devuelve una cookie `better-auth.s
 ```
 
 **Response 401**
+
 ```json
 { "error": "Invalid credentials" }
 ```
 
 ### POST `/api/auth/sign-out`
+
 Cierra la sesión activa. Invalida la cookie.
 
 ---
@@ -56,9 +65,11 @@ Cierra la sesión activa. Invalida la cookie.
 Sistema de autenticación con email/password, JWT tokens y bcrypt para hashing de contraseñas.
 
 ### POST `/api/auth/empleados/register`
+
 Registra un nuevo empleado.
 
 **Request body**
+
 ```json
 {
   "email": "empleado@heladeria.com",
@@ -69,6 +80,7 @@ Registra un nuevo empleado.
 ```
 
 **Response 201**
+
 ```json
 {
   "token": "eyJhbGc...",
@@ -83,14 +95,17 @@ Registra un nuevo empleado.
 ```
 
 **Response 400**
+
 ```json
 { "error": "El correo ya está registrado" }
 ```
 
 ### POST `/api/auth/empleados/login`
+
 Inicia sesión como empleado.
 
 **Request body**
+
 ```json
 {
   "email": "empleado@heladeria.com",
@@ -99,6 +114,7 @@ Inicia sesión como empleado.
 ```
 
 **Response 200**
+
 ```json
 {
   "token": "eyJhbGc...",
@@ -113,14 +129,17 @@ Inicia sesión como empleado.
 ```
 
 **Response 401**
+
 ```json
 { "error": "Usuario o contraseña incorrectos" }
 ```
 
 ### POST `/api/auth/clientes/register`
+
 Registra un nuevo cliente.
 
 **Request body**
+
 ```json
 {
   "email": "cliente@email.com",
@@ -130,6 +149,7 @@ Registra un nuevo cliente.
 ```
 
 **Response 201**
+
 ```json
 {
   "token": "eyJhbGc...",
@@ -144,14 +164,17 @@ Registra un nuevo cliente.
 ```
 
 **Response 400**
+
 ```json
 { "error": "El correo ya está registrado" }
 ```
 
 ### POST `/api/auth/clientes/login`
+
 Inicia sesión como cliente.
 
 **Request body**
+
 ```json
 {
   "email": "cliente@email.com",
@@ -160,6 +183,7 @@ Inicia sesión como cliente.
 ```
 
 **Response 200**
+
 ```json
 {
   "token": "eyJhbGc...",
@@ -174,19 +198,23 @@ Inicia sesión como cliente.
 ```
 
 **Response 401**
+
 ```json
 { "error": "Usuario o contraseña incorrectos" }
 ```
 
 ### GET `/api/auth/me`
+
 Obtiene la información del usuario actual (requiere token JWT en header).
 
 **Request headers**
+
 ```
 Authorization: Bearer <token>
 ```
 
 **Response 200**
+
 ```json
 {
   "user": {
@@ -201,6 +229,7 @@ Authorization: Bearer <token>
 ```
 
 **Response 401**
+
 ```json
 { "error": "Token inválido o expirado" }
 ```
@@ -212,7 +241,7 @@ Authorization: Bearer <token>
 ### En el cliente (frontend)
 
 1. **Registro de Empleado**
-   ```typescript
+  ```typescript
    const response = await fetch('/api/auth/empleados/register', {
      method: 'POST',
      headers: { 'Content-Type': 'application/json' },
@@ -226,10 +255,9 @@ Authorization: Bearer <token>
    const data = await response.json();
    localStorage.setItem('token', data.token);
    localStorage.setItem('user', JSON.stringify(data.user));
-   ```
-
+  ```
 2. **Login de Cliente**
-   ```typescript
+  ```typescript
    const response = await fetch('/api/auth/clientes/login', {
      method: 'POST',
      headers: { 'Content-Type': 'application/json' },
@@ -240,17 +268,16 @@ Authorization: Bearer <token>
    });
    const data = await response.json();
    localStorage.setItem('token', data.token);
-   ```
-
+  ```
 3. **Obtener usuario actual**
-   ```typescript
+  ```typescript
    const token = localStorage.getItem('token');
    const response = await fetch('/api/auth/me', {
      headers: { 'Authorization': `Bearer ${token}` }
    });
    const data = await response.json();
    console.log(data.user);
-   ```
+  ```
 
 ### Rutas de UI
 
@@ -269,17 +296,21 @@ Authorization: Bearer <token>
 ---
 
 ## POST `/api/auth/sign-out`
+
 Cierra la sesión activa. Invalida la cookie.
 
 **Response 200**
+
 ```json
 { "success": true }
 ```
 
 ### GET `/api/auth/get-session`
+
 Devuelve la sesión activa actual. Útil para hidratar el Context en el frontend al recargar.
 
 **Response 200**
+
 ```json
 {
   "user": {
@@ -296,6 +327,7 @@ Devuelve la sesión activa actual. Útil para hidratar el Context en el frontend
 ```
 
 **Response 401**
+
 ```json
 { "error": "Unauthorized" }
 ```
@@ -312,6 +344,7 @@ Devuelve la sesión activa actual. Útil para hidratar el Context en el frontend
 ### GET `/api/categorias`
 
 **Response 200**
+
 ```json
 [
   { "id": 1, "nombre": "Paleta", "descripcion": "Helados en palito de agua o crema" },
@@ -322,16 +355,19 @@ Devuelve la sesión activa actual. Útil para hidratar el Context en el frontend
 ### POST `/api/categorias`
 
 **Request body**
+
 ```json
 { "nombre": "Waffle", "descripcion": "Helado en cono waffle" }
 ```
 
 **Response 201**
+
 ```json
 { "id": 11, "nombre": "Waffle", "descripcion": "Helado en cono waffle" }
 ```
 
 **Response 400**
+
 ```json
 { "error": "El campo 'nombre' es obligatorio" }
 ```
@@ -339,16 +375,19 @@ Devuelve la sesión activa actual. Útil para hidratar el Context en el frontend
 ### PUT `/api/categorias/:id`
 
 **Request body**
+
 ```json
 { "nombre": "Waffle Premium", "descripcion": "Cono waffle artesanal" }
 ```
 
 **Response 200**
+
 ```json
 { "id": 11, "nombre": "Waffle Premium", "descripcion": "Cono waffle artesanal" }
 ```
 
 **Response 404**
+
 ```json
 { "error": "Categoría no encontrada" }
 ```
@@ -356,11 +395,13 @@ Devuelve la sesión activa actual. Útil para hidratar el Context en el frontend
 ### DELETE `/api/categorias/:id`
 
 **Response 200**
+
 ```json
 { "mensaje": "Categoría eliminada correctamente" }
 ```
 
 **Response 409**
+
 ```json
 { "error": "No se puede eliminar: la categoría tiene productos asociados" }
 ```
@@ -370,9 +411,11 @@ Devuelve la sesión activa actual. Útil para hidratar el Context en el frontend
 ## Productos — `/api/productos`
 
 ### GET `/api/productos`
+
 Query params opcionales: `?categoria=1`, `?search=mango`, `?stock_bajo=true`
 
 **Response 200**
+
 ```json
 [
   {
@@ -393,6 +436,7 @@ Query params opcionales: `?categoria=1`, `?search=mango`, `?stock_bajo=true`
 **Response 200** — mismo objeto de arriba, individual.
 
 **Response 404**
+
 ```json
 { "error": "Producto no encontrado" }
 ```
@@ -400,6 +444,7 @@ Query params opcionales: `?categoria=1`, `?search=mango`, `?stock_bajo=true`
 ### POST `/api/productos`
 
 **Request body**
+
 ```json
 {
   "nombre": "Paleta de Guanábana",
@@ -412,11 +457,13 @@ Query params opcionales: `?categoria=1`, `?search=mango`, `?stock_bajo=true`
 ```
 
 **Response 201**
+
 ```json
 { "id": 26, "nombre": "Paleta de Guanábana", "precio": "16.00", "stock": 50 }
 ```
 
 **Response 400**
+
 ```json
 { "error": "El precio debe ser mayor a 0" }
 ```
@@ -424,19 +471,23 @@ Query params opcionales: `?categoria=1`, `?search=mango`, `?stock_bajo=true`
 ### PUT `/api/productos/:id`
 
 **Request body** (todos opcionales)
+
 ```json
 { "precio": 18.00, "stock": 45 }
 ```
 
 **Response 200**
+
 ```json
 { "id": 26, "nombre": "Paleta de Guanábana", "precio": "18.00", "stock": 45 }
 ```
 
 ### DELETE `/api/productos/:id`
+
 Soft delete — cambia `activo` a `false`.
 
 **Response 200**
+
 ```json
 { "mensaje": "Producto desactivado correctamente" }
 ```
@@ -448,6 +499,7 @@ Soft delete — cambia `activo` a `false`.
 ### GET `/api/proveedores`
 
 **Response 200**
+
 ```json
 [
   {
@@ -463,6 +515,7 @@ Soft delete — cambia `activo` a `false`.
 ### POST `/api/proveedores`
 
 **Request body**
+
 ```json
 {
   "nombre": "Helados Importados SA",
@@ -473,6 +526,7 @@ Soft delete — cambia `activo` a `false`.
 ```
 
 **Response 201**
+
 ```json
 { "id": 9, "nombre": "Helados Importados SA" }
 ```
@@ -480,11 +534,13 @@ Soft delete — cambia `activo` a `false`.
 ### PUT `/api/proveedores/:id`
 
 **Request body**
+
 ```json
 { "telefono": "5555-0000" }
 ```
 
 **Response 200**
+
 ```json
 { "id": 9, "nombre": "Helados Importados SA", "telefono": "5555-0000" }
 ```
@@ -492,11 +548,13 @@ Soft delete — cambia `activo` a `false`.
 ### DELETE `/api/proveedores/:id`
 
 **Response 200**
+
 ```json
 { "mensaje": "Proveedor eliminado correctamente" }
 ```
 
 **Response 409**
+
 ```json
 { "error": "No se puede eliminar: el proveedor tiene productos asociados" }
 ```
@@ -508,6 +566,7 @@ Soft delete — cambia `activo` a `false`.
 ### GET `/api/clientes`
 
 **Response 200**
+
 ```json
 [
   {
@@ -523,6 +582,7 @@ Soft delete — cambia `activo` a `false`.
 ### GET `/api/clientes/:id`
 
 **Response 200**
+
 ```json
 {
   "id": 1,
@@ -537,11 +597,13 @@ Soft delete — cambia `activo` a `false`.
 ### POST `/api/clientes`
 
 **Request body**
+
 ```json
 { "nombre": "Beatriz Chan", "email": "bea@mail.com", "telefono": "5500-9999" }
 ```
 
 **Response 201**
+
 ```json
 { "id": 26, "nombre": "Beatriz Chan", "email": "bea@mail.com" }
 ```
@@ -549,11 +611,13 @@ Soft delete — cambia `activo` a `false`.
 ### PUT `/api/clientes/:id`
 
 **Request body**
+
 ```json
 { "telefono": "5500-1234" }
 ```
 
 **Response 200**
+
 ```json
 { "id": 26, "nombre": "Beatriz Chan", "telefono": "5500-1234" }
 ```
@@ -561,6 +625,7 @@ Soft delete — cambia `activo` a `false`.
 ### DELETE `/api/clientes/:id`
 
 **Response 200**
+
 ```json
 { "mensaje": "Cliente eliminado correctamente" }
 ```
@@ -570,9 +635,11 @@ Soft delete — cambia `activo` a `false`.
 ## Ventas — `/api/ventas`
 
 ### GET `/api/ventas`
+
 Query params: `?fecha_inicio=2026-01-01`, `?fecha_fin=2026-12-31`
 
 **Response 200**
+
 ```json
 [
   {
@@ -589,6 +656,7 @@ Query params: `?fecha_inicio=2026-01-01`, `?fecha_fin=2026-12-31`
 ### GET `/api/ventas/:id`
 
 **Response 200**
+
 ```json
 {
   "id": 1,
@@ -610,10 +678,12 @@ Query params: `?fecha_inicio=2026-01-01`, `?fecha_fin=2026-12-31`
 ```
 
 ### POST `/api/ventas`
+
 Llama internamente a `registrar_venta()` dentro de un `BEGIN/COMMIT` explícito.
 El `user_id` se obtiene de la sesión activa de Better Auth — no se envía en el body.
 
 **Request body**
+
 ```json
 {
   "id_cliente": 1,
@@ -625,6 +695,7 @@ El `user_id` se obtiene de la sesión activa de Better Auth — no se envía en 
 ```
 
 **Response 201**
+
 ```json
 {
   "id": 42,
@@ -635,19 +706,23 @@ El `user_id` se obtiene de la sesión activa de Better Auth — no se envía en 
 ```
 
 **Response 400**
+
 ```json
 { "error": "Stock insuficiente para producto 1" }
 ```
 
 ### DELETE `/api/ventas/:id`
+
 Anula la venta y restaura el stock (transacción explícita).
 
 **Response 200**
+
 ```json
 { "mensaje": "Venta anulada y stock restaurado" }
 ```
 
 **Response 403**
+
 ```json
 { "error": "Solo un administrador puede anular ventas" }
 ```
@@ -655,11 +730,13 @@ Anula la venta y restaura el stock (transacción explícita).
 ---
 
 ## Empleados — `/api/empleados`
+
 Solo accesible con `rol = 'admin'`. El middleware verifica el campo `rol` del user de Better Auth.
 
 ### GET `/api/empleados`
 
 **Response 200**
+
 ```json
 [
   {
@@ -675,9 +752,11 @@ Solo accesible con `rol = 'admin'`. El middleware verifica el campo `rol` del us
 ```
 
 ### POST `/api/empleados`
+
 Crea el usuario en Better Auth y el perfil en `empleados` en una sola operación.
 
 **Request body**
+
 ```json
 {
   "nombre": "Nueva Cajera",
@@ -688,32 +767,39 @@ Crea el usuario en Better Auth y el perfil en `empleados` en una sola operación
 ```
 
 **Response 201**
+
 ```json
 { "user_id": "usr_new_006", "nombre": "Nueva Cajera", "rol": "cajero" }
 ```
 
 **Response 400**
+
 ```json
 { "error": "El email ya está registrado" }
 ```
 
 ### PUT `/api/empleados/:user_id`
+
 Actualiza nombre y/o rol. No permite cambiar password desde aquí.
 
 **Request body**
+
 ```json
 { "nombre": "Cajera Senior", "rol": "cajero" }
 ```
 
 **Response 200**
+
 ```json
 { "user_id": "usr_new_006", "nombre": "Cajera Senior", "rol": "cajero" }
 ```
 
 ### DELETE `/api/empleados/:user_id`
+
 Soft delete — cambia `activo` a `false`. No elimina el user de Better Auth.
 
 **Response 200**
+
 ```json
 { "mensaje": "Empleado desactivado" }
 ```
@@ -723,9 +809,11 @@ Soft delete — cambia `activo` a `false`. No elimina el user de Better Auth.
 ## Reportes — `/api/reportes`
 
 ### GET `/api/reportes/ventas-del-dia`
+
 Usa `vista_ventas_completa`.
 
 **Response 200**
+
 ```json
 {
   "fecha": "2026-05-11",
@@ -736,9 +824,11 @@ Usa `vista_ventas_completa`.
 ```
 
 ### GET `/api/reportes/productos-mas-vendidos`
+
 Usa CTE internamente. Query params: `?fecha_inicio=2026-01-01&fecha_fin=2026-12-31`
 
 **Response 200**
+
 ```json
 [
   {
@@ -753,9 +843,11 @@ Usa CTE internamente. Query params: `?fecha_inicio=2026-01-01&fecha_fin=2026-12-
 ```
 
 ### GET `/api/reportes/stock-disponible`
+
 `alerta: true` cuando `stock < 20`.
 
 **Response 200**
+
 ```json
 [
   { "id": 20, "producto": "Especialidad del Día", "stock": 10, "alerta": true },
@@ -764,9 +856,11 @@ Usa CTE internamente. Query params: `?fecha_inicio=2026-01-01&fecha_fin=2026-12-
 ```
 
 ### GET `/api/reportes/ventas-por-categoria`
+
 Usa `GROUP BY` + `HAVING`.
 
 **Response 200**
+
 ```json
 [
   { "categoria": "Sundae", "total_vendido": 180, "ingresos": "6120.00" }
@@ -774,9 +868,11 @@ Usa `GROUP BY` + `HAVING`.
 ```
 
 ### GET `/api/reportes/clientes-frecuentes`
+
 Usa subquery — clientes con más de 3 compras.
 
 **Response 200**
+
 ```json
 [
   { "id": 1, "nombre": "Juan Ramírez", "total_compras": 8, "monto_total": "640.00" }
@@ -787,16 +883,18 @@ Usa subquery — clientes con más de 3 compras.
 
 ## Códigos HTTP
 
-| Código | Significado |
-|--------|-------------|
-| 200 | Éxito |
-| 201 | Recurso creado |
-| 400 | Error de validación / datos incorrectos |
-| 401 | No autenticado (sesión inválida o expirada) |
-| 403 | Sin permisos (rol insuficiente) |
-| 404 | Recurso no encontrado |
-| 409 | Conflicto (no se puede eliminar por dependencias) |
-| 500 | Error interno del servidor |
+
+| Código | Significado                                       |
+| ------ | ------------------------------------------------- |
+| 200    | Éxito                                             |
+| 201    | Recurso creado                                    |
+| 400    | Error de validación / datos incorrectos           |
+| 401    | No autenticado (sesión inválida o expirada)       |
+| 403    | Sin permisos (rol insuficiente)                   |
+| 404    | Recurso no encontrado                             |
+| 409    | Conflicto (no se puede eliminar por dependencias) |
+| 500    | Error interno del servidor                        |
+
 
 ---
 
@@ -848,15 +946,18 @@ export function requireAdmin(req, res, next) {
 
 ## Cobertura de rúbrica
 
-| Criterio cc3062 / cc3088 | Cubierto por |
-|---|---|
-| CRUD ≥ 2 entidades | `/api/productos`, `/api/clientes`, `/api/ventas`, `/api/categorias` |
-| Endpoint de agregación | `/api/reportes/ventas-del-dia`, `/api/reportes/stock-disponible` |
-| Manejo de errores HTTP | Todos los endpoints |
-| JOINs visibles en UI | `GET /api/ventas/:id`, `/api/reportes/*` |
-| Subquery | `GET /api/reportes/clientes-frecuentes` |
-| GROUP BY / HAVING | `GET /api/reportes/ventas-por-categoria` |
-| CTE | `GET /api/reportes/productos-mas-vendidos` |
-| VIEW | `GET /api/ventas` y `/api/reportes/ventas-del-dia` usan `vista_ventas_completa` |
-| Transacción explícita + ROLLBACK | `POST /api/ventas`, `DELETE /api/ventas/:id` |
-| Autenticación login/logout + Context | Better Auth — `/api/auth/sign-in/email`, `/api/auth/sign-out` |
+
+| Criterio cc3062 / cc3088             | Cubierto por                                                                    |
+| ------------------------------------ | ------------------------------------------------------------------------------- |
+| CRUD ≥ 2 entidades                   | `/api/productos`, `/api/clientes`, `/api/ventas`, `/api/categorias`             |
+| Endpoint de agregación               | `/api/reportes/ventas-del-dia`, `/api/reportes/stock-disponible`                |
+| Manejo de errores HTTP               | Todos los endpoints                                                             |
+| JOINs visibles en UI                 | `GET /api/ventas/:id`, `/api/reportes/*`                                        |
+| Subquery                             | `GET /api/reportes/clientes-frecuentes`                                         |
+| GROUP BY / HAVING                    | `GET /api/reportes/ventas-por-categoria`                                        |
+| CTE                                  | `GET /api/reportes/productos-mas-vendidos`                                      |
+| VIEW                                 | `GET /api/ventas` y `/api/reportes/ventas-del-dia` usan `vista_ventas_completa` |
+| Transacción explícita + ROLLBACK     | `POST /api/ventas`, `DELETE /api/ventas/:id`                                    |
+| Autenticación login/logout + Context | Better Auth — `/api/auth/sign-in/email`, `/api/auth/sign-out`                   |
+
+

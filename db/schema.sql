@@ -84,6 +84,7 @@ CREATE TABLE Producto (
     stock         INTEGER NOT NULL DEFAULT 0 CHECK (stock >= 0),
     id_categoria  INTEGER NOT NULL REFERENCES Categoria(id),
     id_proveedor  INTEGER NOT NULL REFERENCES Proveedor(id),
+    imagen_url    TEXT,
     activo        BOOLEAN NOT NULL DEFAULT TRUE,
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -91,10 +92,10 @@ CREATE TABLE Producto (
 -- empleado guarda solo el perfil del negocio;
 -- la autenticación la maneja Better Auth via "user"
 CREATE TABLE Empleado (
-    id        SERIAL PRIMARY KEY,
-    "userId"    TEXT NOT NULL UNIQUE REFERENCES "user"("id") ON DELETE CASCADE,
-    activo    BOOLEAN NOT NULL DEFAULT TRUE,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    id         SERIAL PRIMARY KEY,
+    user_id    TEXT NOT NULL UNIQUE REFERENCES "user"("id") ON DELETE CASCADE,
+    activo     BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE Cliente (
@@ -106,13 +107,13 @@ CREATE TABLE Cliente (
 );
 
 CREATE TABLE Venta (
-    id        SERIAL PRIMARY KEY,
-    idCliente INTEGER REFERENCES Cliente(id),
-    "userId"    TEXT NOT NULL REFERENCES "user"("id"),
-    total     NUMERIC(10, 2) NOT NULL DEFAULT 0,
-    fecha     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    estado    VARCHAR(20) NOT NULL DEFAULT 'completada'
-              CHECK (estado IN ('completada', 'anulada'))
+    id          SERIAL PRIMARY KEY,
+    id_cliente  INTEGER REFERENCES Cliente(id),
+    user_id     TEXT NOT NULL REFERENCES "user"("id"),
+    total       NUMERIC(10, 2) NOT NULL DEFAULT 0,
+    fecha       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    estado      VARCHAR(20) NOT NULL DEFAULT 'completada'
+                CHECK (estado IN ('completada', 'anulada'))
 );
 
 CREATE TABLE DetalleVenta (
@@ -134,11 +135,11 @@ CREATE INDEX idx_session_token      ON session("token");
 CREATE INDEX idx_account_userId     ON account("userId");
 
 -- Negocio
-CREATE INDEX idx_empleado_userId   ON Empleado("userId");
+CREATE INDEX idx_empleado_user_id   ON Empleado(user_id);
 CREATE INDEX idx_producto_categoria ON Producto(id_categoria);
 CREATE INDEX idx_producto_proveedor ON Producto(id_proveedor);
 CREATE INDEX idx_venta_fecha        ON Venta(fecha);
-CREATE INDEX idx_venta_userId       ON Venta("userId");
+CREATE INDEX idx_venta_user_id       ON Venta(user_id);
 CREATE INDEX idx_detalleventa_venta ON DetalleVenta(id_venta);
 CREATE INDEX idx_detalleventa_prod  ON DetalleVenta(id_producto);
 
@@ -153,16 +154,16 @@ SELECT
     v.total,
     v.estado,
     c.nombre             AS cliente,
-    u."name"               AS empleado,
-    u."rol"                AS rol_empleado,
+    u."name"             AS empleado,
+    u."rol"              AS rol_empleado,
     p.nombre             AS producto,
     dv.cantidad,
     dv.precio_unit,
     dv.subtotal,
     cat.nombre           AS categoria
 FROM Venta v
-LEFT  JOIN Cliente       c   ON c.id     = v.idCliente
-JOIN  "user"             u   ON u."id"     = v."userId"
+LEFT  JOIN Cliente       c   ON c.id     = v.id_cliente
+JOIN  "user"             u   ON u."id"   = v.user_id
 JOIN  DetalleVenta       dv  ON dv.id_venta  = v.id
 JOIN  Producto          p   ON p.id     = dv.id_producto
 JOIN  Categoria         cat ON cat.id   = p.id_categoria;
@@ -211,7 +212,7 @@ INSERT INTO account ("id", "accountId", "providerId", "userId", "password") VALU
 -- Reemplaza $2b$10$HASH_PLACEHOLDER con:
 --   node -e "require('bcrypt').hash('secret123',10).then(console.log)"
 
-INSERT INTO Empleado ("userId") VALUES
+INSERT INTO Empleado (user_id) VALUES
     ('usr_admin_001'),
     ('usr_emp_002'),
     ('usr_emp_003'),
@@ -245,32 +246,32 @@ INSERT INTO Cliente (nombre, email, telefono) VALUES
   ('Victor Choc',    'victor@mail.com',  '5500-0024'),
   ('Wendy Cú',       'wendy@mail.com',   '5500-0025');
 
-INSERT INTO Producto (nombre, descripcion, precio, stock, id_categoria, id_proveedor) VALUES
-  ('Paleta de Mango',       'Paleta artesanal de mango natural',          15.00, 80,  1, 3),
-  ('Paleta de Tamarindo',   'Paleta con chile y tamarindo',               12.00, 60,  1, 3),
-  ('Copa de Fresa',         'Copa con helado de fresa y crema',           25.00, 50,  2, 1),
-  ('Sundae Chocolate',      'Helado de vainilla con salsa de chocolate',  35.00, 40,  3, 6),
-  ('Malteada de Oreo',      'Malteada cremosa con galletas Oreo',         40.00, 30,  4, 4),
-  ('Sandwich Vainilla',     'Helado entre dos galletas de chocolate',     20.00, 70,  5, 7),
-  ('Sorbete de Limón',      'Sorbete refrescante sin lácteos',            18.00, 55,  6, 3),
-  ('Tarrina 500ml',         'Helado de tu sabor favorito para llevar',    55.00, 25,  7, 1),
-  ('Bola de Vainilla',      'Una bola de helado de vainilla clásica',     10.00, 100, 8, 7),
-  ('Flotante de Uva',       'Helado de vainilla sobre soda de uva',       30.00, 20,  9, 4),
-  ('Paleta de Coco',        'Paleta cremosa de coco rallado',             14.00, 65,  1, 2),
-  ('Copa Tropicana',        'Copa con helado de frutas tropicales',       28.00, 45,  2, 3),
-  ('Sundae de Fresa',       'Helado de fresa con crema y grageas',        33.00, 35,  3, 1),
-  ('Malteada de Chocolate', 'Malteada espesa de chocolate oscuro',        42.00, 28,  4, 6),
-  ('Sorbete de Maracuyá',   'Sorbete tropical de maracuyá',               18.00, 50,  6, 3),
-  ('Bola de Chocolate',     'Una bola de helado de chocolate',            10.00, 90,  8, 6),
-  ('Bola de Fresa',         'Una bola de helado de fresa',                10.00, 85,  8, 1),
-  ('Sundae Caramelo',       'Helado con salsa de caramelo y nueces',      36.00, 30,  3, 4),
-  ('Tarrina 1L',            'Tarrina familiar de 1 litro',                95.00, 15,  7, 1),
-  ('Especialidad del Día',  'Creación especial del chef heladero',        45.00, 10, 10, 6),
-  ('Paleta de Piña',        'Paleta de piña con chile piquín',            12.00, 70,  1, 3),
-  ('Flotante de Naranja',   'Helado de vainilla sobre soda naranja',      30.00, 18,  9, 4),
-  ('Malteada de Fresa',     'Malteada rosa con fresas naturales',         40.00, 32,  4, 1),
-  ('Copa Clásica',          'Copa de helado de vainilla con chispas',     22.00, 60,  2, 7),
-  ('Sandwich Chocolate',    'Helado de chocolate entre galletas doradas', 22.00, 55,  5, 4);
+INSERT INTO Producto (nombre, descripcion, precio, stock, id_categoria, id_proveedor, imagen_url) VALUES
+  ('Paleta de Mango',       'Paleta artesanal de mango natural',          15.00, 80,  1, 3, 'https://as1.ftcdn.net/v2/jpg/16/14/32/14/1000_F_1614321469_xbs1pWCBmmnKVRwg5P3Mr9suFhrsDzYg.jpg'),
+  ('Paleta de Tamarindo',   'Paleta con chile y tamarindo',               12.00, 60,  1, 3, 'https://as1.ftcdn.net/v2/jpg/16/14/32/14/1000_F_1614321469_xbs1pWCBmmnKVRwg5P3Mr9suFhrsDzYg.jpg'),
+  ('Copa de Fresa',         'Copa con helado de fresa y crema',           25.00, 50,  2, 1, 'https://as1.ftcdn.net/v2/jpg/16/14/32/14/1000_F_1614321469_xbs1pWCBmmnKVRwg5P3Mr9suFhrsDzYg.jpg'),
+  ('Sundae Chocolate',      'Helado de vainilla con salsa de chocolate',  35.00, 40,  3, 6, 'https://as1.ftcdn.net/v2/jpg/16/14/32/14/1000_F_1614321469_xbs1pWCBmmnKVRwg5P3Mr9suFhrsDzYg.jpg'),
+  ('Malteada de Oreo',      'Malteada cremosa con galletas Oreo',         40.00, 30,  4, 4, 'https://as1.ftcdn.net/v2/jpg/16/14/32/14/1000_F_1614321469_xbs1pWCBmmnKVRwg5P3Mr9suFhrsDzYg.jpg'),
+  ('Sandwich Vainilla',     'Helado entre dos galletas de chocolate',     20.00, 70,  5, 7, 'https://as1.ftcdn.net/v2/jpg/16/14/32/14/1000_F_1614321469_xbs1pWCBmmnKVRwg5P3Mr9suFhrsDzYg.jpg'),
+  ('Sorbete de Limón',      'Sorbete refrescante sin lácteos',            18.00, 55,  6, 3, 'https://as1.ftcdn.net/v2/jpg/16/14/32/14/1000_F_1614321469_xbs1pWCBmmnKVRwg5P3Mr9suFhrsDzYg.jpg'),
+  ('Tarrina 500ml',         'Helado de tu sabor favorito para llevar',    55.00, 25,  7, 1, 'https://as1.ftcdn.net/v2/jpg/16/14/32/14/1000_F_1614321469_xbs1pWCBmmnKVRwg5P3Mr9suFhrsDzYg.jpg'),
+  ('Bola de Vainilla',      'Una bola de helado de vainilla clásica',     10.00, 100, 8, 7, 'https://as1.ftcdn.net/v2/jpg/16/14/32/14/1000_F_1614321469_xbs1pWCBmmnKVRwg5P3Mr9suFhrsDzYg.jpg'),
+  ('Flotante de Uva',       'Helado de vainilla sobre soda de uva',       30.00, 20,  9, 4, 'https://as1.ftcdn.net/v2/jpg/16/14/32/14/1000_F_1614321469_xbs1pWCBmmnKVRwg5P3Mr9suFhrsDzYg.jpg'),
+  ('Paleta de Coco',        'Paleta cremosa de coco rallado',             14.00, 65,  1, 2, 'https://as1.ftcdn.net/v2/jpg/16/14/32/14/1000_F_1614321469_xbs1pWCBmmnKVRwg5P3Mr9suFhrsDzYg.jpg'),
+  ('Copa Tropicana',        'Copa con helado de frutas tropicales',       28.00, 45,  2, 3, 'https://as1.ftcdn.net/v2/jpg/16/14/32/14/1000_F_1614321469_xbs1pWCBmmnKVRwg5P3Mr9suFhrsDzYg.jpg'),
+  ('Sundae de Fresa',       'Helado de fresa con crema y grageas',        33.00, 35,  3, 1, 'https://as1.ftcdn.net/v2/jpg/16/14/32/14/1000_F_1614321469_xbs1pWCBmmnKVRwg5P3Mr9suFhrsDzYg.jpg'),
+  ('Malteada de Chocolate', 'Malteada espesa de chocolate oscuro',        42.00, 28,  4, 6, 'https://as1.ftcdn.net/v2/jpg/16/14/32/14/1000_F_1614321469_xbs1pWCBmmnKVRwg5P3Mr9suFhrsDzYg.jpg'),
+  ('Sorbete de Maracuyá',   'Sorbete tropical de maracuyá',               18.00, 50,  6, 3, 'https://as1.ftcdn.net/v2/jpg/16/14/32/14/1000_F_1614321469_xbs1pWCBmmnKVRwg5P3Mr9suFhrsDzYg.jpg'),
+  ('Bola de Chocolate',     'Una bola de helado de chocolate',            10.00, 90,  8, 6, 'https://as1.ftcdn.net/v2/jpg/16/14/32/14/1000_F_1614321469_xbs1pWCBmmnKVRwg5P3Mr9suFhrsDzYg.jpg'),
+  ('Bola de Fresa',         'Una bola de helado de fresa',                10.00, 85,  8, 1, 'https://as1.ftcdn.net/v2/jpg/16/14/32/14/1000_F_1614321469_xbs1pWCBmmnKVRwg5P3Mr9suFhrsDzYg.jpg'),
+  ('Sundae Caramelo',       'Helado con salsa de caramelo y nueces',      36.00, 30,  3, 4, 'https://as1.ftcdn.net/v2/jpg/16/14/32/14/1000_F_1614321469_xbs1pWCBmmnKVRwg5P3Mr9suFhrsDzYg.jpg'),
+  ('Tarrina 1L',            'Tarrina familiar de 1 litro',                95.00, 15,  7, 1, 'https://as1.ftcdn.net/v2/jpg/16/14/32/14/1000_F_1614321469_xbs1pWCBmmnKVRwg5P3Mr9suFhrsDzYg.jpg'),
+  ('Especialidad del Día',  'Creación especial del chef heladero',        45.00, 10, 10, 6, 'https://as1.ftcdn.net/v2/jpg/16/14/32/14/1000_F_1614321469_xbs1pWCBmmnKVRwg5P3Mr9suFhrsDzYg.jpg'),
+  ('Paleta de Piña',        'Paleta de piña con chile piquín',            12.00, 70,  1, 3, 'https://as1.ftcdn.net/v2/jpg/16/14/32/14/1000_F_1614321469_xbs1pWCBmmnKVRwg5P3Mr9suFhrsDzYg.jpg'),
+  ('Flotante de Naranja',   'Helado de vainilla sobre soda naranja',      30.00, 18,  9, 4, 'https://as1.ftcdn.net/v2/jpg/16/14/32/14/1000_F_1614321469_xbs1pWCBmmnKVRwg5P3Mr9suFhrsDzYg.jpg'),
+  ('Malteada de Fresa',     'Malteada rosa con fresas naturales',         40.00, 32,  4, 1, 'https://as1.ftcdn.net/v2/jpg/16/14/32/14/1000_F_1614321469_xbs1pWCBmmnKVRwg5P3Mr9suFhrsDzYg.jpg'),
+  ('Copa Clásica',          'Copa de helado de vainilla con chispas',     22.00, 60,  2, 7, 'https://as1.ftcdn.net/v2/jpg/16/14/32/14/1000_F_1614321469_xbs1pWCBmmnKVRwg5P3Mr9suFhrsDzYg.jpg'),
+  ('Sandwich Chocolate',    'Helado de chocolate entre galletas doradas', 22.00, 55,  5, 4, 'https://as1.ftcdn.net/v2/jpg/16/14/32/14/1000_F_1614321469_xbs1pWCBmmnKVRwg5P3Mr9suFhrsDzYg.jpg');
 
 -- ============================================================
 --  FUNCIÓN: registrar_venta — transacción explícita (cc3088)
@@ -308,7 +309,7 @@ BEGIN
     END LOOP;
 
     -- Cabecera de la venta
-    INSERT INTO Venta ("userId", "idCliente", "total")
+    INSERT INTO Venta (user_id, id_cliente, total)
     VALUES (p_userId, p_idCliente, 0)
     RETURNING id INTO v_id;
 
