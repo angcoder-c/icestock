@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '#/lib/api-fetch'
 
 export type CategoriaApi = {
-  id: number
+  id: string
   nombre: string
   descripcion: string | null
 }
@@ -17,21 +17,21 @@ export function useCategoriasQuery(enabled: boolean) {
 }
 
 export type ProductoApi = {
-  id: number
+  id: string
   nombre: string
   descripcion: string | null
   precio: string
   stock: number
   activo: boolean
   imagen_url: string | null
-  categoria: { id: number; nombre: string }
-  proveedor: { id: number; nombre: string }
+  categoria: { id: string; nombre: string }
+  proveedor: { id: string; nombre: string }
 }
 
-export function useProductosQuery(search: string, categoria: number | null, enabled: boolean, incluirInactivos = false) {
+export function useProductosQuery(search: string, categoria: string | null, enabled: boolean, incluirInactivos = false) {
   const params = new URLSearchParams()
   if (search.trim()) params.set('search', search.trim())
-  if (categoria != null) params.set('categoria', String(categoria))
+  if (categoria != null) params.set('categoria', categoria)
   params.set('incluir_inactivos', incluirInactivos ? 'true' : 'false')
   const qs = params.toString()
   const url = `/api/productos${qs ? `?${qs}` : ''}`
@@ -61,8 +61,8 @@ export function useVentasDelDiaQuery(enabled: boolean) {
 export function useCreateVentaMutation() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (body: { id_cliente: number | null; items: { id_producto: number; cantidad: number }[] }) =>
-      apiFetch<{ id: number; total: string; fecha: string; mensaje: string }>('/api/ventas', {
+    mutationFn: (body: { id_cliente: string | null; items: { id_producto: string; cantidad: number }[] }) =>
+      apiFetch<{ id: string; total: string; fecha: string; mensaje: string }>('/api/ventas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -71,12 +71,13 @@ export function useCreateVentaMutation() {
       void qc.invalidateQueries({ queryKey: ['reportes', 'ventas-del-dia'] })
       void qc.invalidateQueries({ queryKey: ['productos'] })
       void qc.invalidateQueries({ queryKey: ['ventas', 'list'] })
+      void qc.invalidateQueries({ queryKey: ['clientes', 'me', 'ventas'] })
     },
   })
 }
 
 export type ClienteListApi = {
-  id: number
+  id: string
   nombre: string
   email: string | null
   telefono: string | null
@@ -91,8 +92,26 @@ export function useClientesQuery(enabled: boolean) {
   })
 }
 
+export type ClienteStaffDetailApi = {
+  id: string
+  nombre: string
+  email: string | null
+  telefono: string | null
+  creado_en: string
+  total_compras: number
+  monto_total: string
+}
+
+export function useClienteStaffDetailQuery(id: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: ['clientes', 'staff-detail', id],
+    queryFn: () => apiFetch<ClienteStaffDetailApi>(`/api/clientes/${id}`),
+    enabled: enabled && id != null,
+  })
+}
+
 export type ClienteMeApi = {
-  id: number
+  id: string
   nombre: string
   email: string | null
   telefono: string | null
@@ -106,7 +125,23 @@ export function useClienteMeQuery(enabled: boolean) {
   })
 }
 
-export function useProductoQuery(id: number | null, enabled: boolean) {
+export type ClienteCompraItem = {
+  id: string
+  fecha: string
+  total: string
+  estado: string
+  lineas: number
+}
+
+export function useMisComprasQuery(enabled: boolean) {
+  return useQuery({
+    queryKey: ['clientes', 'me', 'ventas'],
+    queryFn: () => apiFetch<ClienteCompraItem[]>('/api/clientes/me/ventas'),
+    enabled,
+  })
+}
+
+export function useProductoQuery(id: string | null, enabled: boolean) {
   return useQuery({
     queryKey: ['productos', 'detail', id],
     queryFn: () => apiFetch<ProductoApi>(`/api/productos/${id}`),
@@ -118,7 +153,7 @@ export function useCreateClienteMutation() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body: { nombre: string; email?: string | null; telefono?: string | null }) =>
-      apiFetch<{ id: number; nombre: string; email: string | null }>('/api/clientes', {
+      apiFetch<{ id: string; nombre: string; email: string | null }>('/api/clientes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -130,7 +165,7 @@ export function useCreateClienteMutation() {
 }
 
 export type VentaListItem = {
-  id: number
+  id: string
   fecha: string
   total: string
   estado: string
@@ -151,7 +186,7 @@ export function useVentasListQuery(enabled: boolean, fechaInicio?: string | null
 }
 
 export type ProveedorApi = {
-  id: number
+  id: string
   nombre: string
   telefono?: string | null
   email?: string | null
@@ -174,8 +209,8 @@ export function useCreateProductoMutation() {
       descripcion?: string | null
       precio: number
       stock: number
-      id_categoria: number
-      id_proveedor: number
+      id_categoria: string
+      id_proveedor: string
       imagen_url?: string | null
     }) =>
       apiFetch<ProductoApi>('/api/productos', {
@@ -193,13 +228,13 @@ export function useUpdateProductoMutation() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (args: {
-      id: number
+      id: string
       nombre?: string
       descripcion?: string | null
       precio?: number
       stock?: number
-      id_categoria?: number
-      id_proveedor?: number
+      id_categoria?: string
+      id_proveedor?: string
       activo?: boolean
       imagen_url?: string | null
     }) => {
@@ -220,7 +255,7 @@ export function useUpdateProductoMutation() {
 export function useDeleteProductoMutation() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: number) =>
+    mutationFn: (id: string) =>
       apiFetch<{ mensaje: string }>(`/api/productos/${id}`, {
         method: 'DELETE',
       }),
@@ -233,9 +268,9 @@ export function useDeleteProductoMutation() {
 export function useUpdateClienteMutation() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (args: { id: number; nombre?: string; email?: string | null; telefono?: string | null }) => {
+    mutationFn: (args: { id: string; nombre?: string; email?: string | null; telefono?: string | null }) => {
       const { id, ...body } = args
-      return apiFetch<{ id: number; nombre: string; telefono: string | null }>(`/api/clientes/${id}`, {
+      return apiFetch<{ id: string; nombre: string; telefono: string | null }>(`/api/clientes/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -243,6 +278,7 @@ export function useUpdateClienteMutation() {
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['clientes'] })
+      void qc.invalidateQueries({ queryKey: ['clientes', 'staff-detail'] })
     },
   })
 }
@@ -257,7 +293,7 @@ export function useProductosStockBajoQuery(enabled: boolean) {
 
 export type ProductoMasVendido = {
   rank: number
-  id_producto: number
+  id_producto: string
   producto: string
   categoria: string
   total_vendido: number
@@ -276,7 +312,7 @@ export function useProductosMasVendidosQuery(enabled: boolean, fechaInicio?: str
   })
 }
 
-export type StockDisponibleRow = { id: number; producto: string; stock: number; alerta: boolean }
+export type StockDisponibleRow = { id: string; producto: string; stock: number; alerta: boolean }
 
 export function useStockDisponibleQuery(enabled: boolean) {
   return useQuery({
@@ -296,7 +332,7 @@ export function useVentasPorCategoriaQuery(enabled: boolean) {
   })
 }
 
-export type ClienteFrecuente = { id: number; nombre: string; total_compras: number; monto_total: string }
+export type ClienteFrecuente = { id: string; nombre: string; total_compras: number; monto_total: string }
 
 export function useClientesFrecuentesQuery(enabled: boolean) {
   return useQuery({
@@ -315,10 +351,10 @@ export type UploadImagenResponse = {
 export function useUploadProductImageMutation() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (input: { file: File; id_producto?: number }) => {
+    mutationFn: async (input: { file: File; id_producto?: string }) => {
       const form = new FormData()
       form.append('file', input.file)
-      if (input.id_producto != null) form.append('id_producto', String(input.id_producto))
+      if (input.id_producto != null) form.append('id_producto', input.id_producto)
       const res = await fetch('/api/upload/imagen', { method: 'POST', body: form, credentials: 'include' })
       const data = (await res.json()) as { error?: string } & Partial<UploadImagenResponse>
       if (!res.ok) throw new Error(data.error || 'No se pudo subir la imagen')

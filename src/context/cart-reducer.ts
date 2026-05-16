@@ -1,5 +1,5 @@
 export type CartLine = {
-  productId: number
+  productId: string
   name: string
   unitPrice: number
   qty: number
@@ -12,9 +12,9 @@ export type CartState = {
 }
 
 export type CartAction =
-  | { type: 'ADD'; product: { id: number; nombre: string; precio: number; imagen_url?: string | null }; qty: number }
-  | { type: 'REMOVE'; productId: number }
-  | { type: 'SET_QTY'; productId: number; qty: number }
+  | { type: 'ADD'; product: { id: string; nombre: string; precio: number; imagen_url?: string | null }; qty: number }
+  | { type: 'REMOVE'; productId: string }
+  | { type: 'SET_QTY'; productId: string; qty: number }
   | { type: 'TOGGLE_DRAWER' }
   | { type: 'OPEN_DRAWER' }
   | { type: 'CLOSE_DRAWER' }

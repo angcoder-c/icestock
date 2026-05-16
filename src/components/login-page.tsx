@@ -1,6 +1,6 @@
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { ArrowRight, CheckCircle2, IceCream2, Loader2, Store, UserRound } from 'lucide-react'
+import { ArrowRight, CheckCircle2, Loader2, Store, UserRound } from 'lucide-react'
 
 import { useIcestock } from '#/context/icestock-context'
 import { authClient } from '#/lib/auth-client'
@@ -29,19 +29,9 @@ export function LoginHub({ redirect }: { redirect?: string }) {
           >
             ← Inicio
           </Link>
-          <div className="flex items-center gap-2">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--accent)]/20 text-[var(--accent)] ring-1 ring-[var(--accent)]/30">
-              <IceCream2 className="h-5 w-5" />
-            </div>
-            <span className="font-[family-name:var(--font-heading)] text-xl font-bold tracking-tight text-white">IceStock</span>
-          </div>
         </div>
 
         <h1 className="text-center font-[family-name:var(--font-heading)] text-3xl font-bold text-white sm:text-4xl">Acceso al sistema</h1>
-        <p className="mx-auto mt-3 max-w-xl text-center text-sm text-white/55">
-          Elige tu espacio: <span className="text-[var(--accent)]">cliente</span> para comprar en la tienda, o{' '}
-          <span className="text-[var(--secondary)]">personal de caja</span> (sin panel de administración).
-        </p>
 
         {redirect ? (
           <p className="mt-4 text-center text-xs text-white/40">Al iniciar sesión te llevaremos al área que corresponda a tu cuenta.</p>
@@ -57,7 +47,6 @@ export function LoginHub({ redirect }: { redirect?: string }) {
               <UserRound className="h-6 w-6" />
             </div>
             <h2 className="mt-6 font-[family-name:var(--font-heading)] text-2xl font-bold text-white">Cliente</h2>
-            <p className="mt-2 text-sm leading-relaxed text-white/55">Explora el catálogo, arma tu pedido y compra en línea.</p>
             <span className="mt-8 inline-flex items-center gap-2 text-sm font-bold text-[var(--accent)]">
               Entrar o registrarse <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
             </span>
@@ -72,9 +61,6 @@ export function LoginHub({ redirect }: { redirect?: string }) {
               <Store className="h-6 w-6" />
             </div>
             <h2 className="mt-6 font-[family-name:var(--font-heading)] text-2xl font-bold text-white">Personal de caja</h2>
-            <p className="mt-2 text-sm leading-relaxed text-white/55">
-              Solo catálogo y ventas en la tienda. El panel de administración es exclusivo de cuentas admin.
-            </p>
             <span className="mt-8 inline-flex items-center gap-2 text-sm font-bold text-[var(--secondary)]">
               Entrar o registrarse <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
             </span>

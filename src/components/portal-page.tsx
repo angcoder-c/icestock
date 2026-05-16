@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { Link, getRouteApi, useNavigate } from '@tanstack/react-router'
 import {
   BarChart3,
   Home,
-  IceCream2,
   LayoutDashboard,
   Loader2,
   LogOut,
@@ -12,37 +11,35 @@ import {
   ShoppingCart,
   Trash2,
   Users,
-  X,
 } from 'lucide-react'
 
 import { useIcestock } from '#/context/icestock-context'
 import {
   useCategoriasQuery,
   useClientesQuery,
-  useDeleteProductoMutation,
   useProductosQuery,
-  useUpdateClienteMutation,
-  useUpdateProductoMutation,
   useVentasDelDiaQuery,
-  type ClienteListApi,
-  type ProductoApi,
 } from '#/hooks/use-icestock-api'
+import { portalModalReturnSearch } from '#/lib/portal-search'
 import { PosSaleShell } from '#/components/pos-sale-view'
 import {
-  ProductDeactivateModal,
   ProductInactiveBadge,
   productInventoryRowClass,
 } from '#/components/product-deactivate-modal'
+import { SiteLogo } from '#/components/site-logo'
+
+const portalRouteApi = getRouteApi('/portal')
 
 type PortalTab = 'inicio' | 'ventas' | 'productos' | 'clientes' | 'reportes'
 
 export function PortalPage() {
   const navigate = useNavigate()
+  const portalSearch = portalRouteApi.useSearch()
+  const tab: PortalTab = portalSearch.tab ?? 'inicio'
   const { session, sessionPending, signOut } = useIcestock()
-  const [tab, setTab] = useState<PortalTab>('inicio')
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [categoriaId, setCategoriaId] = useState<number | null>(null)
+  const [categoriaId, setCategoriaId] = useState<string | null>(null)
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300)
@@ -68,22 +65,6 @@ export function PortalPage() {
   const productosQ = useProductosQuery(debouncedSearch, categoriaId, !!isAdmin)
   const clientesVentasQ = useClientesQuery(!!isAdmin && tab === 'ventas')
   const clientesListQ = useClientesQuery(!!isAdmin && tab === 'clientes')
-  const [prodEdit, setProdEdit] = useState<ProductoApi | null>(null)
-  const [peNombre, setPeNombre] = useState('')
-  const [pePrecio, setPePrecio] = useState('')
-  const [peStock, setPeStock] = useState('')
-  const [peActivo, setPeActivo] = useState(true)
-  const [peErr, setPeErr] = useState<string | null>(null)
-  const [prodDeactivate, setProdDeactivate] = useState<ProductoApi | null>(null)
-  const [prodDeactivateErr, setProdDeactivateErr] = useState<string | null>(null)
-  const [cliEdit, setCliEdit] = useState<ClienteListApi | null>(null)
-  const [ceNombre, setCeNombre] = useState('')
-  const [ceEmail, setCeEmail] = useState('')
-  const [ceTel, setCeTel] = useState('')
-  const [ceErr, setCeErr] = useState<string | null>(null)
-  const updateProd = useUpdateProductoMutation()
-  const deleteProd = useDeleteProductoMutation()
-  const updateCli = useUpdateClienteMutation()
 
   if (sessionPending || !session || !isAdmin) {
     return (
@@ -102,7 +83,9 @@ export function PortalPage() {
   const navBtn = (id: PortalTab, label: string, Icon: typeof Home) => (
     <button
       type="button"
-      onClick={() => setTab(id)}
+      onClick={() => {
+        void navigate({ to: '/portal', search: { tab: id }, replace: true })
+      }}
       className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition ${
         tab === id ? 'bg-teal-800 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
       }`}
@@ -115,9 +98,9 @@ export function PortalPage() {
   return (
     <div className="flex min-h-screen bg-[#faf7f2] text-slate-800 antialiased">
       <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col border-r border-slate-200/80 bg-white/95 px-3 py-6 shadow-sm">
-        <Link to="/portal" className="mb-6 flex items-center gap-2 px-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-teal-100 text-teal-800">
-            <IceCream2 className="h-5 w-5" />
+        <Link to="/portal" search={{ tab: 'inicio' }} className="mb-6 flex items-center gap-2 px-2">
+          <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-teal-100 ring-1 ring-teal-200/80">
+            <SiteLogo decorative className="h-6 w-6 object-contain" />
           </div>
           <div className="min-w-0">
             <p className="truncate font-[family-name:var(--font-heading)] text-sm font-bold text-teal-900">IceStock</p>
@@ -135,7 +118,7 @@ export function PortalPage() {
 
         <button
           type="button"
-          onClick={() => setTab('ventas')}
+          onClick={() => void navigate({ to: '/portal', search: { tab: 'ventas' }, replace: true })}
           className="mt-4 w-full rounded-xl bg-[#ff726f] py-3 text-sm font-bold text-white shadow-sm transition hover:brightness-105"
         >
           + Nueva venta
@@ -267,12 +250,11 @@ export function PortalPage() {
                             title="Editar"
                             className="inline-flex rounded-lg p-2 text-teal-800 hover:bg-teal-50"
                             onClick={() => {
-                              setProdEdit(p)
-                              setPeNombre(p.nombre)
-                              setPePrecio(p.precio)
-                              setPeStock(String(p.stock))
-                              setPeActivo(p.activo)
-                              setPeErr(null)
+                              void navigate({
+                                to: '/portal/productos/editar/$productId',
+                                params: { productId: p.id },
+                                search: portalModalReturnSearch(portalSearch),
+                              })
                             }}
                           >
                             <Pencil className="h-4 w-4" />
@@ -283,8 +265,11 @@ export function PortalPage() {
                               title="Desactivar"
                               className="inline-flex rounded-lg p-2 text-red-600 hover:bg-red-50"
                               onClick={() => {
-                                setProdDeactivateErr(null)
-                                setProdDeactivate(p)
+                                void navigate({
+                                  to: '/portal/productos/desactivar/$productId',
+                                  params: { productId: p.id },
+                                  search: portalModalReturnSearch(portalSearch),
+                                })
                               }}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -327,11 +312,11 @@ export function PortalPage() {
                             className="inline-flex rounded-lg p-2 text-teal-800 hover:bg-teal-50"
                             title="Editar"
                             onClick={() => {
-                              setCliEdit(c)
-                              setCeNombre(c.nombre)
-                              setCeEmail(c.email ?? '')
-                              setCeTel(c.telefono ?? '')
-                              setCeErr(null)
+                              void navigate({
+                                to: '/portal/clientes/editar/$clienteId',
+                                params: { clienteId: c.id },
+                                search: { tab: 'clientes' },
+                              })
                             }}
                           >
                             <Pencil className="h-4 w-4" />
@@ -355,151 +340,6 @@ export function PortalPage() {
         </div>
       </div>
 
-      {prodEdit && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-            <div className="flex items-center justify-between">
-              <h2 className="font-[family-name:var(--font-heading)] text-lg font-bold text-teal-900">Editar producto</h2>
-              <button type="button" className="rounded-full p-2 text-slate-400 hover:bg-slate-100" onClick={() => setProdEdit(null)} aria-label="Cerrar">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <form
-              className="mt-4 space-y-3"
-              onSubmit={(e) => {
-                e.preventDefault()
-                setPeErr(null)
-                const precio = Number(pePrecio)
-                const stock = Number(peStock)
-                if (!peNombre.trim()) {
-                  setPeErr('Nombre obligatorio')
-                  return
-                }
-                if (!Number.isFinite(precio) || precio <= 0) {
-                  setPeErr('Precio inválido')
-                  return
-                }
-                if (!Number.isFinite(stock) || stock < 0) {
-                  setPeErr('Stock inválido')
-                  return
-                }
-                void updateProd
-                  .mutateAsync({
-                    id: prodEdit.id,
-                    nombre: peNombre.trim(),
-                    precio,
-                    stock,
-                    activo: peActivo,
-                  })
-                  .then(() => setProdEdit(null))
-                  .catch((err) => setPeErr(err instanceof Error ? err.message : 'Error'))
-              }}
-            >
-              <label className="block text-xs font-bold uppercase text-slate-500">
-                Nombre
-                <input value={peNombre} onChange={(e) => setPeNombre(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-              </label>
-              <label className="block text-xs font-bold uppercase text-slate-500">
-                Precio
-                <input value={pePrecio} onChange={(e) => setPePrecio(e.target.value)} type="number" step="0.01" className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-              </label>
-              <label className="block text-xs font-bold uppercase text-slate-500">
-                Stock
-                <input value={peStock} onChange={(e) => setPeStock(e.target.value)} type="number" min={0} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-              </label>
-              <label className="flex items-center gap-2 text-sm text-slate-700">
-                <input type="checkbox" checked={peActivo} onChange={(e) => setPeActivo(e.target.checked)} />
-                Activo
-              </label>
-              {peErr && <p className="text-sm text-red-600">{peErr}</p>}
-              <div className="flex justify-end gap-2 pt-2">
-                <button type="button" className="rounded-xl px-4 py-2 text-sm text-slate-600" onClick={() => setProdEdit(null)}>
-                  Cancelar
-                </button>
-                <button type="submit" disabled={updateProd.isPending} className="rounded-xl bg-teal-800 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
-                  {updateProd.isPending ? 'Guardando…' : 'Guardar'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {cliEdit && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-            <div className="flex items-center justify-between">
-              <h2 className="font-[family-name:var(--font-heading)] text-lg font-bold text-teal-900">Editar cliente</h2>
-              <button type="button" className="rounded-full p-2 text-slate-400 hover:bg-slate-100" onClick={() => setCliEdit(null)} aria-label="Cerrar">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <form
-              className="mt-4 space-y-3"
-              onSubmit={(e) => {
-                e.preventDefault()
-                setCeErr(null)
-                if (!ceNombre.trim()) {
-                  setCeErr('Nombre obligatorio')
-                  return
-                }
-                void updateCli
-                  .mutateAsync({
-                    id: cliEdit.id,
-                    nombre: ceNombre.trim(),
-                    email: ceEmail.trim() || null,
-                    telefono: ceTel.trim() || null,
-                  })
-                  .then(() => setCliEdit(null))
-                  .catch((err) => setCeErr(err instanceof Error ? err.message : 'Error'))
-              }}
-            >
-              <label className="block text-xs font-bold uppercase text-slate-500">
-                Nombre
-                <input value={ceNombre} onChange={(e) => setCeNombre(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-              </label>
-              <label className="block text-xs font-bold uppercase text-slate-500">
-                Correo
-                <input value={ceEmail} onChange={(e) => setCeEmail(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-              </label>
-              <label className="block text-xs font-bold uppercase text-slate-500">
-                Teléfono
-                <input value={ceTel} onChange={(e) => setCeTel(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-              </label>
-              {ceErr && <p className="text-sm text-red-600">{ceErr}</p>}
-              <div className="flex justify-end gap-2 pt-2">
-                <button type="button" className="rounded-xl px-4 py-2 text-sm text-slate-600" onClick={() => setCliEdit(null)}>
-                  Cancelar
-                </button>
-                <button type="submit" disabled={updateCli.isPending} className="rounded-xl bg-teal-800 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
-                  {updateCli.isPending ? 'Guardando…' : 'Guardar'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      <ProductDeactivateModal
-        product={prodDeactivate}
-        variant="light"
-        isPending={deleteProd.isPending}
-        error={prodDeactivateErr}
-        onClose={() => {
-          if (!deleteProd.isPending) {
-            setProdDeactivate(null)
-            setProdDeactivateErr(null)
-          }
-        }}
-        onConfirm={() => {
-          if (!prodDeactivate) return
-          setProdDeactivateErr(null)
-          void deleteProd
-            .mutateAsync(prodDeactivate.id)
-            .then(() => setProdDeactivate(null))
-            .catch((err) => setProdDeactivateErr(err instanceof Error ? err.message : 'No se pudo desactivar'))
-        }}
-      />
     </div>
   )
 }

@@ -11,7 +11,7 @@ export function TiendaPage() {
   const { session, sessionPending, signOut } = useIcestock()
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [categoriaId, setCategoriaId] = useState<number | null>(null)
+  const [categoriaId, setCategoriaId] = useState<string | null>(null)
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300)

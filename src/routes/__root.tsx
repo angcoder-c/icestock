@@ -4,6 +4,7 @@ import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 import { useState } from 'react'
 
+import { NotFoundPage } from '#/components/not-found-page'
 import { IcestockProvider } from '#/context/icestock-context'
 
 import appCss from '../styles.css?url'
@@ -24,6 +25,11 @@ export const Route = createRootRoute({
     ],
     links: [
       {
+        rel: 'icon',
+        type: 'image/png',
+        href: '/logo.png',
+      },
+      {
         rel: 'stylesheet',
         href: appCss,
       },
@@ -43,8 +49,8 @@ export const Route = createRootRoute({
     ],
   }),
   shellComponent: RootDocument,
-  notFoundComponent: () => <p>Not Found</p>,
-  errorComponent: ({ error }: { error: any }) => (
+  notFoundComponent: NotFoundPage,
+  errorComponent: ({ error }: { error: unknown }) => (
     <div style={{ padding: 16 }}>
       <h2>Unexpected error</h2>
       <pre>{String(error)}</pre>

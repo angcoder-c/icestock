@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { Home, IceCream2, Loader2, Search } from 'lucide-react'
+import { Home, Loader2, Search } from 'lucide-react'
 
 import { ProductPosCard } from '#/components/pos-sale-view'
+import { SiteLogo } from '#/components/site-logo'
 import { useIcestock } from '#/context/icestock-context'
 import { useCategoriasQuery, useProductosQuery } from '#/hooks/use-icestock-api'
 
@@ -11,7 +12,7 @@ export function HomePage() {
   const { session, sessionPending } = useIcestock()
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [categoriaId, setCategoriaId] = useState<number | null>(null)
+  const [categoriaId, setCategoriaId] = useState<string | null>(null)
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300)
@@ -65,8 +66,8 @@ export function HomePage() {
       <header className="sticky top-0 z-30 border-b border-white/10 bg-[var(--bg)]/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4">
           <Link to="/" className="flex items-center gap-2 rounded-xl outline-none ring-[var(--accent)]/40 focus-visible:ring-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--primary)] text-[var(--accent)]">
-              <IceCream2 className="h-5 w-5" />
+            <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-[var(--primary)] ring-1 ring-[var(--accent)]/25">
+              <SiteLogo decorative className="h-6 w-6 object-contain" />
             </div>
             <span className="font-[family-name:var(--font-heading)] text-xl font-bold tracking-tight text-white">IceStock</span>
           </Link>
@@ -90,13 +91,6 @@ export function HomePage() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 pb-24 pt-6">
-        <section className="mb-8 rounded-3xl border border-white/10 bg-[var(--panel)]/80 p-6 shadow-xl sm:p-8">
-          <h1 className="font-[family-name:var(--font-heading)] text-2xl font-bold text-white sm:text-3xl">Catálogo</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/60">
-            Consulta precios y disponibilidad. Para comprar necesitas una cuenta: usa <span className="text-[var(--accent)]">Iniciar sesión</span> arriba.
-          </p>
-        </section>
-
         <div className="relative mb-6">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
           <input

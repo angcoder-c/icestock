@@ -1,7 +1,7 @@
 import { Loader2, X } from 'lucide-react'
 
 export type ProductDeactivateTarget = {
-  id: number
+  id: string
   nombre: string
 }
 
@@ -52,17 +52,19 @@ export function ProductDeactivateModal({
   const title = isLight ? 'text-slate-900' : 'text-[var(--text)]'
   const body = isLight ? 'text-slate-600' : 'text-[var(--text)]/75'
   const cancelBtn = isLight
-    ? 'text-slate-600 hover:bg-slate-100'
-    : 'text-[var(--text)]/75 hover:bg-white/10'
+    ? 'text-slate-600 transition-colors hover:bg-slate-100'
+    : 'text-[var(--text)]/75 transition-colors hover:bg-white/10'
   const confirmBtn = isLight
-    ? 'bg-red-600 text-white hover:bg-red-700'
-    : 'bg-[var(--secondary)] text-white hover:brightness-110'
+    ? 'bg-red-600 text-white transition-colors hover:bg-red-700'
+    : 'bg-[var(--secondary)] text-white transition-colors hover:brightness-110'
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       role="presentation"
-      onClick={() => !isPending && onClose()}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isPending) onClose()
+      }}
     >
       <div
         role="dialog"
@@ -94,12 +96,17 @@ export function ProductDeactivateModal({
         </p>
         {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
         <div className="mt-6 flex justify-end gap-2">
-          <button type="button" className={`rounded-xl px-4 py-2 text-sm font-semibold ${cancelBtn}`} onClick={onClose} disabled={isPending}>
+          <button
+            type="button"
+            className={`rounded-xl px-4 py-2 text-sm font-semibold disabled:pointer-events-none disabled:opacity-50 ${cancelBtn}`}
+            onClick={onClose}
+            disabled={isPending}
+          >
             Cancelar
           </button>
           <button
             type="button"
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold disabled:opacity-50 ${confirmBtn}`}
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold disabled:pointer-events-none disabled:opacity-50 ${confirmBtn}`}
             onClick={onConfirm}
             disabled={isPending}
           >

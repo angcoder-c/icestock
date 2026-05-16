@@ -6,9 +6,9 @@ import { cartReducer, initialCartState, type CartAction, type CartState } from '
 type IcestockContextValue = {
   cart: CartState
   dispatchCart: React.Dispatch<CartAction>
-  addToCart: (product: { id: number; nombre: string; precio: number; imagen_url?: string | null }, qty?: number) => void
-  removeFromCart: (productId: number) => void
-  setLineQty: (productId: number, qty: number) => void
+  addToCart: (product: { id: string; nombre: string; precio: number; imagen_url?: string | null }, qty?: number) => void
+  removeFromCart: (productId: string) => void
+  setLineQty: (productId: string, qty: number) => void
   toggleCart: () => void
   openCart: () => void
   closeCart: () => void
@@ -26,15 +26,15 @@ export function IcestockProvider({ children }: { children: ReactNode }) {
   const [cart, dispatchCart] = useReducer(cartReducer, initialCartState)
   const { data: session, isPending: sessionPending } = authClient.useSession()
 
-  const addToCart = useCallback((product: { id: number; nombre: string; precio: number; imagen_url?: string | null }, qty = 1) => {
+  const addToCart = useCallback((product: { id: string; nombre: string; precio: number; imagen_url?: string | null }, qty = 1) => {
     dispatchCart({ type: 'ADD', product, qty })
   }, [])
 
-  const removeFromCart = useCallback((productId: number) => {
+  const removeFromCart = useCallback((productId: string) => {
     dispatchCart({ type: 'REMOVE', productId })
   }, [])
 
-  const setLineQty = useCallback((productId: number, qty: number) => {
+  const setLineQty = useCallback((productId: string, qty: number) => {
     dispatchCart({ type: 'SET_QTY', productId, qty })
   }, [])
 

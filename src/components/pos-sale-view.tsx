@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import {
-  Bell,
   CheckCircle2,
   Home,
   IceCream2,
@@ -9,12 +8,16 @@ import {
   LogOut,
   Minus,
   Plus,
+  Receipt,
   Search,
   ShoppingBag,
   X,
 } from 'lucide-react'
 
+import { ClienteCompraSuccessModal, type ClienteCompraSuccess } from '#/components/cliente-compra-success-modal'
+import { SiteLogo } from '#/components/site-logo'
 import { useIcestock } from '#/context/icestock-context'
+import { isUuid } from '#/lib/is-uuid'
 import {
   useCategoriasQuery,
   useClienteMeQuery,
@@ -32,8 +35,8 @@ export type PosSaleShellProps = {
   signOut: () => Promise<void>
   search: string
   setSearch: (v: string) => void
-  categoriaId: number | null
-  setCategoriaId: (v: number | null) => void
+  categoriaId: string | null
+  setCategoriaId: (v: string | null) => void
   categoriasQ: ReturnType<typeof useCategoriasQuery>
   productosQ: ReturnType<typeof useProductosQuery>
   reporteQ: ReturnType<typeof useVentasDelDiaQuery>
@@ -76,8 +79,8 @@ export function PosSaleShell({
         <header className="sticky top-0 z-30 border-b border-white/10 bg-[var(--panel)]/95 shadow-lg backdrop-blur">
           <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3">
             <Link to={homeLink} className="flex shrink-0 items-center gap-2 rounded-xl outline-none ring-[var(--accent)]/30 focus-visible:ring-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--primary)] text-[var(--accent)]">
-                <IceCream2 className="h-4 w-4" />
+              <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-transparent ring-1 ring-[var(--accent)]/25">
+                <SiteLogo decorative className="h-5 w-5 object-contain" />
               </div>
               <span className="font-[family-name:var(--font-heading)] text-lg font-bold tracking-tight text-[var(--text)]">IceStock</span>
             </Link>
@@ -91,6 +94,15 @@ export function PosSaleShell({
             />
           </div>
           <div className="ml-auto flex items-center gap-1">
+            {checkoutMode === 'cliente' && (
+              <Link
+                to="/tienda/compras"
+                className="hidden items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/85 transition hover:bg-white/10 sm:inline-flex"
+              >
+                <Receipt className="h-4 w-4" />
+                Mis compras
+              </Link>
+            )}
             <div className="relative lg:hidden">
               <button type="button" className="rounded-full p-2 text-white/70 hover:bg-white/10" onClick={openCart} aria-label="Pedido">
                 <ShoppingBag className="h-5 w-5" />
@@ -293,26 +305,7 @@ function ReporteDelDiaBlock({ query, variant = 'dark' }: { query: ReturnType<typ
       </section>
     )
   }
-  return (
-    <section className="mb-10 rounded-3xl border border-white/10 bg-[var(--panel)] p-6">
-      <h3 className="font-[family-name:var(--font-heading)] text-lg font-bold text-white">IceStock hoy — {d.fecha}</h3>
-      <p className="mt-1 text-sm text-white/55">Datos reales desde el API (vista de ventas)</p>
-      <div className="mt-4 grid gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl bg-black/25 p-4">
-          <p className="text-xs uppercase tracking-wider text-white/45">Ventas (cabeceras)</p>
-          <p className="mt-1 font-[family-name:var(--font-heading)] text-2xl font-bold text-[var(--accent)]">{d.total_ventas}</p>
-        </div>
-        <div className="rounded-2xl bg-black/25 p-4">
-          <p className="text-xs uppercase tracking-wider text-white/45">Ingresos del día</p>
-          <p className="mt-1 font-[family-name:var(--font-heading)] text-2xl font-bold text-white">Q{d.ingresos}</p>
-        </div>
-        <div className="rounded-2xl bg-black/25 p-4">
-          <p className="text-xs uppercase tracking-wider text-white/45">Líneas en vista</p>
-          <p className="mt-1 font-[family-name:var(--font-heading)] text-2xl font-bold text-[var(--secondary)]">{d.ventas.length}</p>
-        </div>
-      </div>
-    </section>
-  )
+  return null
 }
 
 export function ProductPosCard({
@@ -391,9 +384,9 @@ function PedidoPanel({
   checkoutMode: 'staff' | 'cliente'
   clientesQ?: PosSaleShellProps['clientesQ']
   clienteMeQ: ReturnType<typeof useClienteMeQuery>
-  lines: { productId: number; name: string; unitPrice: number; qty: number; imagen_url?: string | null }[]
-  onRemove: (id: number) => void
-  setLineQty: (id: number, qty: number) => void
+  lines: { productId: string; name: string; unitPrice: number; qty: number; imagen_url?: string | null }[]
+  onRemove: (id: string) => void
+  setLineQty: (id: string, qty: number) => void
   subtotal: number
   impuesto: number
   total: number
@@ -403,6 +396,7 @@ function PedidoPanel({
   const mutation = useCreateVentaMutation()
   const [staffClienteId, setStaffClienteId] = useState<string>('')
   const [submitMsg, setSubmitMsg] = useState<string | null>(null)
+  const [compraSuccess, setCompraSuccess] = useState<ClienteCompraSuccess | null>(null)
 
   const handleConfirm = useCallback(async () => {
     setSubmitMsg(null)
@@ -410,7 +404,7 @@ function PedidoPanel({
       setSubmitMsg('Tu lista está vacía.')
       return
     }
-    let id_cliente: number | null = null
+    let id_cliente: string | null = null
     if (checkoutMode === 'cliente') {
       if (clienteMeQ.isLoading) {
         setSubmitMsg('Cargando tu cuenta…')
@@ -423,19 +417,24 @@ function PedidoPanel({
       }
       id_cliente = id
     } else {
-      id_cliente = staffClienteId === '' ? null : Number(staffClienteId)
-      if (staffClienteId !== '' && !Number.isFinite(id_cliente)) {
+      id_cliente = staffClienteId === '' ? null : staffClienteId
+      if (staffClienteId !== '' && !isUuid(id_cliente)) {
         setSubmitMsg('Cliente inválido.')
         return
       }
     }
     try {
-      await mutation.mutateAsync({
+      const result = await mutation.mutateAsync({
         id_cliente,
         items: lines.map((l) => ({ id_producto: l.productId, cantidad: l.qty })),
       })
-      setSubmitMsg('¡Pedido registrado! Gracias por tu compra.')
       onClear()
+      if (checkoutMode === 'cliente') {
+        setCompraSuccess({ id: result.id, total: result.total, fecha: result.fecha })
+        setSubmitMsg(null)
+      } else {
+        setSubmitMsg('¡Pedido registrado! Gracias por tu compra.')
+      }
     } catch (err) {
       setSubmitMsg(err instanceof Error ? err.message : 'No se pudo completar el pedido.')
     }
@@ -448,6 +447,7 @@ function PedidoPanel({
 
   return (
     <>
+      <ClienteCompraSuccessModal venta={compraSuccess} onClose={() => setCompraSuccess(null)} />
       <div className="mb-4 flex items-center gap-2">
         <ShoppingBag className={`h-5 w-5 ${isLight ? 'text-teal-800' : 'text-[var(--accent)]'}`} />
         <h2 className={`font-[family-name:var(--font-heading)] text-lg font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>Pedido actual</h2>
@@ -606,9 +606,9 @@ function CartOverlay({
   checkoutMode: 'staff' | 'cliente'
   clientesQ?: PosSaleShellProps['clientesQ']
   clienteMeQ: ReturnType<typeof useClienteMeQuery>
-  lines: { productId: number; name: string; unitPrice: number; qty: number; imagen_url?: string | null }[]
-  onRemove: (id: number) => void
-  setLineQty: (id: number, qty: number) => void
+  lines: { productId: string; name: string; unitPrice: number; qty: number; imagen_url?: string | null }[]
+  onRemove: (id: string) => void
+  setLineQty: (id: string, qty: number) => void
   subtotal: number
   impuesto: number
   total: number
@@ -630,6 +630,7 @@ function CartOverlay({
         className={`flex h-full max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border shadow-2xl ${
           isLight ? 'border-slate-200 bg-white' : 'border-white/10 bg-[var(--panel)]'
         }`}
+        onClick={(e) => e.stopPropagation()}
       >
         <div className={`flex shrink-0 items-center justify-between border-b px-4 py-3 ${isLight ? 'border-slate-100' : 'border-white/10'}`}>
           <h2 className={`font-[family-name:var(--font-heading)] text-lg font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>

@@ -9,14 +9,17 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as TiendaRouteImport } from './routes/tienda'
-import { Route as PortalRouteImport } from './routes/portal'
-import { Route as EmpleadoRouteImport } from './routes/empleado'
 import { Route as CajaRouteImport } from './routes/caja'
+import { Route as PortalRouteRouteImport } from './routes/portal/route'
 import { Route as LoginRouteRouteImport } from './routes/login/route'
+import { Route as EmpleadoRouteRouteImport } from './routes/empleado/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TiendaIndexRouteImport } from './routes/tienda/index'
+import { Route as PortalIndexRouteImport } from './routes/portal/index'
 import { Route as LoginIndexRouteImport } from './routes/login/index'
+import { Route as EmpleadoIndexRouteImport } from './routes/empleado/index'
 import { Route as ApiIndexRouteImport } from './routes/api/index'
+import { Route as TiendaComprasRouteImport } from './routes/tienda/compras'
 import { Route as LoginEmpleadoRouteImport } from './routes/login/empleado'
 import { Route as LoginClienteRouteImport } from './routes/login/cliente'
 import { Route as ApiVentasRouteImport } from './routes/api/ventas'
@@ -40,25 +43,22 @@ import { Route as ApiClientesMeRouteImport } from './routes/api/clientes/me'
 import { Route as ApiClientesIdRouteImport } from './routes/api/clientes/$id'
 import { Route as ApiCategoriasIdRouteImport } from './routes/api/categorias/$id'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as PortalProductosEditarProductIdRouteImport } from './routes/portal/productos/editar/$productId'
+import { Route as PortalProductosDesactivarProductIdRouteImport } from './routes/portal/productos/desactivar/$productId'
+import { Route as PortalClientesEditarClienteIdRouteImport } from './routes/portal/clientes/editar/$clienteId'
+import { Route as EmpleadoProductosEditarProductIdRouteImport } from './routes/empleado/productos/editar/$productId'
+import { Route as EmpleadoProductosDesactivarProductIdRouteImport } from './routes/empleado/productos/desactivar/$productId'
+import { Route as EmpleadoClientesEditarClienteIdRouteImport } from './routes/empleado/clientes/editar/$clienteId'
+import { Route as ApiClientesMeVentasRouteImport } from './routes/api/clientes/me/ventas'
 
-const TiendaRoute = TiendaRouteImport.update({
-  id: '/tienda',
-  path: '/tienda',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PortalRoute = PortalRouteImport.update({
-  id: '/portal',
-  path: '/portal',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const EmpleadoRoute = EmpleadoRouteImport.update({
-  id: '/empleado',
-  path: '/empleado',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const CajaRoute = CajaRouteImport.update({
   id: '/caja',
   path: '/caja',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortalRouteRoute = PortalRouteRouteImport.update({
+  id: '/portal',
+  path: '/portal',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRouteRoute = LoginRouteRouteImport.update({
@@ -66,19 +66,44 @@ const LoginRouteRoute = LoginRouteRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EmpleadoRouteRoute = EmpleadoRouteRouteImport.update({
+  id: '/empleado',
+  path: '/empleado',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const TiendaIndexRoute = TiendaIndexRouteImport.update({
+  id: '/tienda/',
+  path: '/tienda/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortalIndexRoute = PortalIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PortalRouteRoute,
 } as any)
 const LoginIndexRoute = LoginIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => LoginRouteRoute,
 } as any)
+const EmpleadoIndexRoute = EmpleadoIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => EmpleadoRouteRoute,
+} as any)
 const ApiIndexRoute = ApiIndexRouteImport.update({
   id: '/api/',
   path: '/api/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TiendaComprasRoute = TiendaComprasRouteImport.update({
+  id: '/tienda/compras',
+  path: '/tienda/compras',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginEmpleadoRoute = LoginEmpleadoRouteImport.update({
@@ -200,14 +225,54 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PortalProductosEditarProductIdRoute =
+  PortalProductosEditarProductIdRouteImport.update({
+    id: '/productos/editar/$productId',
+    path: '/productos/editar/$productId',
+    getParentRoute: () => PortalRouteRoute,
+  } as any)
+const PortalProductosDesactivarProductIdRoute =
+  PortalProductosDesactivarProductIdRouteImport.update({
+    id: '/productos/desactivar/$productId',
+    path: '/productos/desactivar/$productId',
+    getParentRoute: () => PortalRouteRoute,
+  } as any)
+const PortalClientesEditarClienteIdRoute =
+  PortalClientesEditarClienteIdRouteImport.update({
+    id: '/clientes/editar/$clienteId',
+    path: '/clientes/editar/$clienteId',
+    getParentRoute: () => PortalRouteRoute,
+  } as any)
+const EmpleadoProductosEditarProductIdRoute =
+  EmpleadoProductosEditarProductIdRouteImport.update({
+    id: '/productos/editar/$productId',
+    path: '/productos/editar/$productId',
+    getParentRoute: () => EmpleadoRouteRoute,
+  } as any)
+const EmpleadoProductosDesactivarProductIdRoute =
+  EmpleadoProductosDesactivarProductIdRouteImport.update({
+    id: '/productos/desactivar/$productId',
+    path: '/productos/desactivar/$productId',
+    getParentRoute: () => EmpleadoRouteRoute,
+  } as any)
+const EmpleadoClientesEditarClienteIdRoute =
+  EmpleadoClientesEditarClienteIdRouteImport.update({
+    id: '/clientes/editar/$clienteId',
+    path: '/clientes/editar/$clienteId',
+    getParentRoute: () => EmpleadoRouteRoute,
+  } as any)
+const ApiClientesMeVentasRoute = ApiClientesMeVentasRouteImport.update({
+  id: '/ventas',
+  path: '/ventas',
+  getParentRoute: () => ApiClientesMeRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/empleado': typeof EmpleadoRouteRouteWithChildren
   '/login': typeof LoginRouteRouteWithChildren
+  '/portal': typeof PortalRouteRouteWithChildren
   '/caja': typeof CajaRoute
-  '/empleado': typeof EmpleadoRoute
-  '/portal': typeof PortalRoute
-  '/tienda': typeof TiendaRoute
   '/api/categorias': typeof ApiCategoriasRouteWithChildren
   '/api/clientes': typeof ApiClientesRouteWithChildren
   '/api/docs': typeof ApiDocsRoute
@@ -217,12 +282,16 @@ export interface FileRoutesByFullPath {
   '/api/ventas': typeof ApiVentasRouteWithChildren
   '/login/cliente': typeof LoginClienteRoute
   '/login/empleado': typeof LoginEmpleadoRoute
+  '/tienda/compras': typeof TiendaComprasRoute
   '/api/': typeof ApiIndexRoute
+  '/empleado/': typeof EmpleadoIndexRoute
   '/login/': typeof LoginIndexRoute
+  '/portal/': typeof PortalIndexRoute
+  '/tienda/': typeof TiendaIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/categorias/$id': typeof ApiCategoriasIdRoute
   '/api/clientes/$id': typeof ApiClientesIdRoute
-  '/api/clientes/me': typeof ApiClientesMeRoute
+  '/api/clientes/me': typeof ApiClientesMeRouteWithChildren
   '/api/empleados/$userId': typeof ApiEmpleadosUserIdRoute
   '/api/productos/$id': typeof ApiProductosIdRoute
   '/api/proveedores/$id': typeof ApiProveedoresIdRoute
@@ -233,13 +302,17 @@ export interface FileRoutesByFullPath {
   '/api/reportes/ventas-por-categoria': typeof ApiReportesVentasPorCategoriaRoute
   '/api/upload/imagen': typeof ApiUploadImagenRoute
   '/api/ventas/$id': typeof ApiVentasIdRoute
+  '/api/clientes/me/ventas': typeof ApiClientesMeVentasRoute
+  '/empleado/clientes/editar/$clienteId': typeof EmpleadoClientesEditarClienteIdRoute
+  '/empleado/productos/desactivar/$productId': typeof EmpleadoProductosDesactivarProductIdRoute
+  '/empleado/productos/editar/$productId': typeof EmpleadoProductosEditarProductIdRoute
+  '/portal/clientes/editar/$clienteId': typeof PortalClientesEditarClienteIdRoute
+  '/portal/productos/desactivar/$productId': typeof PortalProductosDesactivarProductIdRoute
+  '/portal/productos/editar/$productId': typeof PortalProductosEditarProductIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/caja': typeof CajaRoute
-  '/empleado': typeof EmpleadoRoute
-  '/portal': typeof PortalRoute
-  '/tienda': typeof TiendaRoute
   '/api/categorias': typeof ApiCategoriasRouteWithChildren
   '/api/clientes': typeof ApiClientesRouteWithChildren
   '/api/docs': typeof ApiDocsRoute
@@ -249,12 +322,16 @@ export interface FileRoutesByTo {
   '/api/ventas': typeof ApiVentasRouteWithChildren
   '/login/cliente': typeof LoginClienteRoute
   '/login/empleado': typeof LoginEmpleadoRoute
+  '/tienda/compras': typeof TiendaComprasRoute
   '/api': typeof ApiIndexRoute
+  '/empleado': typeof EmpleadoIndexRoute
   '/login': typeof LoginIndexRoute
+  '/portal': typeof PortalIndexRoute
+  '/tienda': typeof TiendaIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/categorias/$id': typeof ApiCategoriasIdRoute
   '/api/clientes/$id': typeof ApiClientesIdRoute
-  '/api/clientes/me': typeof ApiClientesMeRoute
+  '/api/clientes/me': typeof ApiClientesMeRouteWithChildren
   '/api/empleados/$userId': typeof ApiEmpleadosUserIdRoute
   '/api/productos/$id': typeof ApiProductosIdRoute
   '/api/proveedores/$id': typeof ApiProveedoresIdRoute
@@ -265,15 +342,21 @@ export interface FileRoutesByTo {
   '/api/reportes/ventas-por-categoria': typeof ApiReportesVentasPorCategoriaRoute
   '/api/upload/imagen': typeof ApiUploadImagenRoute
   '/api/ventas/$id': typeof ApiVentasIdRoute
+  '/api/clientes/me/ventas': typeof ApiClientesMeVentasRoute
+  '/empleado/clientes/editar/$clienteId': typeof EmpleadoClientesEditarClienteIdRoute
+  '/empleado/productos/desactivar/$productId': typeof EmpleadoProductosDesactivarProductIdRoute
+  '/empleado/productos/editar/$productId': typeof EmpleadoProductosEditarProductIdRoute
+  '/portal/clientes/editar/$clienteId': typeof PortalClientesEditarClienteIdRoute
+  '/portal/productos/desactivar/$productId': typeof PortalProductosDesactivarProductIdRoute
+  '/portal/productos/editar/$productId': typeof PortalProductosEditarProductIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/empleado': typeof EmpleadoRouteRouteWithChildren
   '/login': typeof LoginRouteRouteWithChildren
+  '/portal': typeof PortalRouteRouteWithChildren
   '/caja': typeof CajaRoute
-  '/empleado': typeof EmpleadoRoute
-  '/portal': typeof PortalRoute
-  '/tienda': typeof TiendaRoute
   '/api/categorias': typeof ApiCategoriasRouteWithChildren
   '/api/clientes': typeof ApiClientesRouteWithChildren
   '/api/docs': typeof ApiDocsRoute
@@ -283,12 +366,16 @@ export interface FileRoutesById {
   '/api/ventas': typeof ApiVentasRouteWithChildren
   '/login/cliente': typeof LoginClienteRoute
   '/login/empleado': typeof LoginEmpleadoRoute
+  '/tienda/compras': typeof TiendaComprasRoute
   '/api/': typeof ApiIndexRoute
+  '/empleado/': typeof EmpleadoIndexRoute
   '/login/': typeof LoginIndexRoute
+  '/portal/': typeof PortalIndexRoute
+  '/tienda/': typeof TiendaIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/categorias/$id': typeof ApiCategoriasIdRoute
   '/api/clientes/$id': typeof ApiClientesIdRoute
-  '/api/clientes/me': typeof ApiClientesMeRoute
+  '/api/clientes/me': typeof ApiClientesMeRouteWithChildren
   '/api/empleados/$userId': typeof ApiEmpleadosUserIdRoute
   '/api/productos/$id': typeof ApiProductosIdRoute
   '/api/proveedores/$id': typeof ApiProveedoresIdRoute
@@ -299,16 +386,22 @@ export interface FileRoutesById {
   '/api/reportes/ventas-por-categoria': typeof ApiReportesVentasPorCategoriaRoute
   '/api/upload/imagen': typeof ApiUploadImagenRoute
   '/api/ventas/$id': typeof ApiVentasIdRoute
+  '/api/clientes/me/ventas': typeof ApiClientesMeVentasRoute
+  '/empleado/clientes/editar/$clienteId': typeof EmpleadoClientesEditarClienteIdRoute
+  '/empleado/productos/desactivar/$productId': typeof EmpleadoProductosDesactivarProductIdRoute
+  '/empleado/productos/editar/$productId': typeof EmpleadoProductosEditarProductIdRoute
+  '/portal/clientes/editar/$clienteId': typeof PortalClientesEditarClienteIdRoute
+  '/portal/productos/desactivar/$productId': typeof PortalProductosDesactivarProductIdRoute
+  '/portal/productos/editar/$productId': typeof PortalProductosEditarProductIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/login'
-    | '/caja'
     | '/empleado'
+    | '/login'
     | '/portal'
-    | '/tienda'
+    | '/caja'
     | '/api/categorias'
     | '/api/clientes'
     | '/api/docs'
@@ -318,8 +411,12 @@ export interface FileRouteTypes {
     | '/api/ventas'
     | '/login/cliente'
     | '/login/empleado'
+    | '/tienda/compras'
     | '/api/'
+    | '/empleado/'
     | '/login/'
+    | '/portal/'
+    | '/tienda/'
     | '/api/auth/$'
     | '/api/categorias/$id'
     | '/api/clientes/$id'
@@ -334,13 +431,17 @@ export interface FileRouteTypes {
     | '/api/reportes/ventas-por-categoria'
     | '/api/upload/imagen'
     | '/api/ventas/$id'
+    | '/api/clientes/me/ventas'
+    | '/empleado/clientes/editar/$clienteId'
+    | '/empleado/productos/desactivar/$productId'
+    | '/empleado/productos/editar/$productId'
+    | '/portal/clientes/editar/$clienteId'
+    | '/portal/productos/desactivar/$productId'
+    | '/portal/productos/editar/$productId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/caja'
-    | '/empleado'
-    | '/portal'
-    | '/tienda'
     | '/api/categorias'
     | '/api/clientes'
     | '/api/docs'
@@ -350,8 +451,12 @@ export interface FileRouteTypes {
     | '/api/ventas'
     | '/login/cliente'
     | '/login/empleado'
+    | '/tienda/compras'
     | '/api'
+    | '/empleado'
     | '/login'
+    | '/portal'
+    | '/tienda'
     | '/api/auth/$'
     | '/api/categorias/$id'
     | '/api/clientes/$id'
@@ -366,14 +471,20 @@ export interface FileRouteTypes {
     | '/api/reportes/ventas-por-categoria'
     | '/api/upload/imagen'
     | '/api/ventas/$id'
+    | '/api/clientes/me/ventas'
+    | '/empleado/clientes/editar/$clienteId'
+    | '/empleado/productos/desactivar/$productId'
+    | '/empleado/productos/editar/$productId'
+    | '/portal/clientes/editar/$clienteId'
+    | '/portal/productos/desactivar/$productId'
+    | '/portal/productos/editar/$productId'
   id:
     | '__root__'
     | '/'
-    | '/login'
-    | '/caja'
     | '/empleado'
+    | '/login'
     | '/portal'
-    | '/tienda'
+    | '/caja'
     | '/api/categorias'
     | '/api/clientes'
     | '/api/docs'
@@ -383,8 +494,12 @@ export interface FileRouteTypes {
     | '/api/ventas'
     | '/login/cliente'
     | '/login/empleado'
+    | '/tienda/compras'
     | '/api/'
+    | '/empleado/'
     | '/login/'
+    | '/portal/'
+    | '/tienda/'
     | '/api/auth/$'
     | '/api/categorias/$id'
     | '/api/clientes/$id'
@@ -399,15 +514,21 @@ export interface FileRouteTypes {
     | '/api/reportes/ventas-por-categoria'
     | '/api/upload/imagen'
     | '/api/ventas/$id'
+    | '/api/clientes/me/ventas'
+    | '/empleado/clientes/editar/$clienteId'
+    | '/empleado/productos/desactivar/$productId'
+    | '/empleado/productos/editar/$productId'
+    | '/portal/clientes/editar/$clienteId'
+    | '/portal/productos/desactivar/$productId'
+    | '/portal/productos/editar/$productId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  EmpleadoRouteRoute: typeof EmpleadoRouteRouteWithChildren
   LoginRouteRoute: typeof LoginRouteRouteWithChildren
+  PortalRouteRoute: typeof PortalRouteRouteWithChildren
   CajaRoute: typeof CajaRoute
-  EmpleadoRoute: typeof EmpleadoRoute
-  PortalRoute: typeof PortalRoute
-  TiendaRoute: typeof TiendaRoute
   ApiCategoriasRoute: typeof ApiCategoriasRouteWithChildren
   ApiClientesRoute: typeof ApiClientesRouteWithChildren
   ApiDocsRoute: typeof ApiDocsRoute
@@ -415,7 +536,9 @@ export interface RootRouteChildren {
   ApiProductosRoute: typeof ApiProductosRouteWithChildren
   ApiProveedoresRoute: typeof ApiProveedoresRouteWithChildren
   ApiVentasRoute: typeof ApiVentasRouteWithChildren
+  TiendaComprasRoute: typeof TiendaComprasRoute
   ApiIndexRoute: typeof ApiIndexRoute
+  TiendaIndexRoute: typeof TiendaIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiReportesClientesFrecuentesRoute: typeof ApiReportesClientesFrecuentesRoute
   ApiReportesProductosMasVendidosRoute: typeof ApiReportesProductosMasVendidosRoute
@@ -427,32 +550,18 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/tienda': {
-      id: '/tienda'
-      path: '/tienda'
-      fullPath: '/tienda'
-      preLoaderRoute: typeof TiendaRouteImport
+    '/caja': {
+      id: '/caja'
+      path: '/caja'
+      fullPath: '/caja'
+      preLoaderRoute: typeof CajaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/portal': {
       id: '/portal'
       path: '/portal'
       fullPath: '/portal'
-      preLoaderRoute: typeof PortalRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/empleado': {
-      id: '/empleado'
-      path: '/empleado'
-      fullPath: '/empleado'
-      preLoaderRoute: typeof EmpleadoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/caja': {
-      id: '/caja'
-      path: '/caja'
-      fullPath: '/caja'
-      preLoaderRoute: typeof CajaRouteImport
+      preLoaderRoute: typeof PortalRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -462,12 +571,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/empleado': {
+      id: '/empleado'
+      path: '/empleado'
+      fullPath: '/empleado'
+      preLoaderRoute: typeof EmpleadoRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/tienda/': {
+      id: '/tienda/'
+      path: '/tienda'
+      fullPath: '/tienda/'
+      preLoaderRoute: typeof TiendaIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/portal/': {
+      id: '/portal/'
+      path: '/'
+      fullPath: '/portal/'
+      preLoaderRoute: typeof PortalIndexRouteImport
+      parentRoute: typeof PortalRouteRoute
     }
     '/login/': {
       id: '/login/'
@@ -476,11 +606,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginIndexRouteImport
       parentRoute: typeof LoginRouteRoute
     }
+    '/empleado/': {
+      id: '/empleado/'
+      path: '/'
+      fullPath: '/empleado/'
+      preLoaderRoute: typeof EmpleadoIndexRouteImport
+      parentRoute: typeof EmpleadoRouteRoute
+    }
     '/api/': {
       id: '/api/'
       path: '/api'
       fullPath: '/api/'
       preLoaderRoute: typeof ApiIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tienda/compras': {
+      id: '/tienda/compras'
+      path: '/tienda/compras'
+      fullPath: '/tienda/compras'
+      preLoaderRoute: typeof TiendaComprasRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login/empleado': {
@@ -644,8 +788,76 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/portal/productos/editar/$productId': {
+      id: '/portal/productos/editar/$productId'
+      path: '/productos/editar/$productId'
+      fullPath: '/portal/productos/editar/$productId'
+      preLoaderRoute: typeof PortalProductosEditarProductIdRouteImport
+      parentRoute: typeof PortalRouteRoute
+    }
+    '/portal/productos/desactivar/$productId': {
+      id: '/portal/productos/desactivar/$productId'
+      path: '/productos/desactivar/$productId'
+      fullPath: '/portal/productos/desactivar/$productId'
+      preLoaderRoute: typeof PortalProductosDesactivarProductIdRouteImport
+      parentRoute: typeof PortalRouteRoute
+    }
+    '/portal/clientes/editar/$clienteId': {
+      id: '/portal/clientes/editar/$clienteId'
+      path: '/clientes/editar/$clienteId'
+      fullPath: '/portal/clientes/editar/$clienteId'
+      preLoaderRoute: typeof PortalClientesEditarClienteIdRouteImport
+      parentRoute: typeof PortalRouteRoute
+    }
+    '/empleado/productos/editar/$productId': {
+      id: '/empleado/productos/editar/$productId'
+      path: '/productos/editar/$productId'
+      fullPath: '/empleado/productos/editar/$productId'
+      preLoaderRoute: typeof EmpleadoProductosEditarProductIdRouteImport
+      parentRoute: typeof EmpleadoRouteRoute
+    }
+    '/empleado/productos/desactivar/$productId': {
+      id: '/empleado/productos/desactivar/$productId'
+      path: '/productos/desactivar/$productId'
+      fullPath: '/empleado/productos/desactivar/$productId'
+      preLoaderRoute: typeof EmpleadoProductosDesactivarProductIdRouteImport
+      parentRoute: typeof EmpleadoRouteRoute
+    }
+    '/empleado/clientes/editar/$clienteId': {
+      id: '/empleado/clientes/editar/$clienteId'
+      path: '/clientes/editar/$clienteId'
+      fullPath: '/empleado/clientes/editar/$clienteId'
+      preLoaderRoute: typeof EmpleadoClientesEditarClienteIdRouteImport
+      parentRoute: typeof EmpleadoRouteRoute
+    }
+    '/api/clientes/me/ventas': {
+      id: '/api/clientes/me/ventas'
+      path: '/ventas'
+      fullPath: '/api/clientes/me/ventas'
+      preLoaderRoute: typeof ApiClientesMeVentasRouteImport
+      parentRoute: typeof ApiClientesMeRoute
+    }
   }
 }
+
+interface EmpleadoRouteRouteChildren {
+  EmpleadoIndexRoute: typeof EmpleadoIndexRoute
+  EmpleadoClientesEditarClienteIdRoute: typeof EmpleadoClientesEditarClienteIdRoute
+  EmpleadoProductosDesactivarProductIdRoute: typeof EmpleadoProductosDesactivarProductIdRoute
+  EmpleadoProductosEditarProductIdRoute: typeof EmpleadoProductosEditarProductIdRoute
+}
+
+const EmpleadoRouteRouteChildren: EmpleadoRouteRouteChildren = {
+  EmpleadoIndexRoute: EmpleadoIndexRoute,
+  EmpleadoClientesEditarClienteIdRoute: EmpleadoClientesEditarClienteIdRoute,
+  EmpleadoProductosDesactivarProductIdRoute:
+    EmpleadoProductosDesactivarProductIdRoute,
+  EmpleadoProductosEditarProductIdRoute: EmpleadoProductosEditarProductIdRoute,
+}
+
+const EmpleadoRouteRouteWithChildren = EmpleadoRouteRoute._addFileChildren(
+  EmpleadoRouteRouteChildren,
+)
 
 interface LoginRouteRouteChildren {
   LoginClienteRoute: typeof LoginClienteRoute
@@ -663,6 +875,25 @@ const LoginRouteRouteWithChildren = LoginRouteRoute._addFileChildren(
   LoginRouteRouteChildren,
 )
 
+interface PortalRouteRouteChildren {
+  PortalIndexRoute: typeof PortalIndexRoute
+  PortalClientesEditarClienteIdRoute: typeof PortalClientesEditarClienteIdRoute
+  PortalProductosDesactivarProductIdRoute: typeof PortalProductosDesactivarProductIdRoute
+  PortalProductosEditarProductIdRoute: typeof PortalProductosEditarProductIdRoute
+}
+
+const PortalRouteRouteChildren: PortalRouteRouteChildren = {
+  PortalIndexRoute: PortalIndexRoute,
+  PortalClientesEditarClienteIdRoute: PortalClientesEditarClienteIdRoute,
+  PortalProductosDesactivarProductIdRoute:
+    PortalProductosDesactivarProductIdRoute,
+  PortalProductosEditarProductIdRoute: PortalProductosEditarProductIdRoute,
+}
+
+const PortalRouteRouteWithChildren = PortalRouteRoute._addFileChildren(
+  PortalRouteRouteChildren,
+)
+
 interface ApiCategoriasRouteChildren {
   ApiCategoriasIdRoute: typeof ApiCategoriasIdRoute
 }
@@ -675,14 +906,26 @@ const ApiCategoriasRouteWithChildren = ApiCategoriasRoute._addFileChildren(
   ApiCategoriasRouteChildren,
 )
 
+interface ApiClientesMeRouteChildren {
+  ApiClientesMeVentasRoute: typeof ApiClientesMeVentasRoute
+}
+
+const ApiClientesMeRouteChildren: ApiClientesMeRouteChildren = {
+  ApiClientesMeVentasRoute: ApiClientesMeVentasRoute,
+}
+
+const ApiClientesMeRouteWithChildren = ApiClientesMeRoute._addFileChildren(
+  ApiClientesMeRouteChildren,
+)
+
 interface ApiClientesRouteChildren {
   ApiClientesIdRoute: typeof ApiClientesIdRoute
-  ApiClientesMeRoute: typeof ApiClientesMeRoute
+  ApiClientesMeRoute: typeof ApiClientesMeRouteWithChildren
 }
 
 const ApiClientesRouteChildren: ApiClientesRouteChildren = {
   ApiClientesIdRoute: ApiClientesIdRoute,
-  ApiClientesMeRoute: ApiClientesMeRoute,
+  ApiClientesMeRoute: ApiClientesMeRouteWithChildren,
 }
 
 const ApiClientesRouteWithChildren = ApiClientesRoute._addFileChildren(
@@ -739,11 +982,10 @@ const ApiVentasRouteWithChildren = ApiVentasRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  EmpleadoRouteRoute: EmpleadoRouteRouteWithChildren,
   LoginRouteRoute: LoginRouteRouteWithChildren,
+  PortalRouteRoute: PortalRouteRouteWithChildren,
   CajaRoute: CajaRoute,
-  EmpleadoRoute: EmpleadoRoute,
-  PortalRoute: PortalRoute,
-  TiendaRoute: TiendaRoute,
   ApiCategoriasRoute: ApiCategoriasRouteWithChildren,
   ApiClientesRoute: ApiClientesRouteWithChildren,
   ApiDocsRoute: ApiDocsRoute,
@@ -751,7 +993,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiProductosRoute: ApiProductosRouteWithChildren,
   ApiProveedoresRoute: ApiProveedoresRouteWithChildren,
   ApiVentasRoute: ApiVentasRouteWithChildren,
+  TiendaComprasRoute: TiendaComprasRoute,
   ApiIndexRoute: ApiIndexRoute,
+  TiendaIndexRoute: TiendaIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiReportesClientesFrecuentesRoute: ApiReportesClientesFrecuentesRoute,
   ApiReportesProductosMasVendidosRoute: ApiReportesProductosMasVendidosRoute,
