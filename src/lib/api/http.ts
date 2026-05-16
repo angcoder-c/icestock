@@ -12,6 +12,16 @@ export function json(data: unknown, status = 200, headers?: HeadersInit) {
   })
 }
 
+export function html(body: string, status = 200, headers?: HeadersInit) {
+  return new Response(body, {
+    status,
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      ...headers,
+    },
+  })
+}
+
 export function fmtMoney(v: unknown) {
   if (v == null || v === '') return '0.00'
   const n = Number(v)
@@ -28,16 +38,16 @@ export function isPgUniqueError(e: unknown): boolean {
 }
 
 export function mapProductoApi(row: {
-  id: number
+  id: string
   nombre: string
   descripcion: string | null
   precio: unknown
   stock: number
   activo: boolean
   imagen_url?: string | null
-  categoria_id: number
+  categoria_id: string
   categoria_nombre: string
-  proveedor_id: number
+  proveedor_id: string
   proveedor_nombre: string
 }) {
   return {

@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-import { json, isPgFkError } from '#/lib/api/http'
+import { json } from '#/lib/api/http'
 import { getSessionUser } from '#/lib/api/session'
 import * as db from '#/lib/db'
 

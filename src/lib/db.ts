@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid'
 dotenv.config()
 
 type SaleItem = {
-  id_producto: number
+  id_producto: string
   cantidad: number
 }
 
@@ -73,7 +73,8 @@ export async function getVentasConClienteYEmpleado(limit = 20) {
       COUNT(dv.id) AS lineas
     FROM Venta v
     LEFT JOIN Cliente c ON c.id = v.id_cliente
-    JOIN "user" u ON u.id = v.user_id
+    LEFT JOIN Empleado e ON e.id = v.empleado_id
+    LEFT JOIN "user" u ON u.id = e.user_id
     LEFT JOIN DetalleVenta dv ON dv.id_venta = v.id
     GROUP BY v.id, v.fecha, v.total, v.estado, c.nombre, u.name
     ORDER BY v.fecha DESC
@@ -209,7 +210,8 @@ export async function getRankingProductosCte() {
 
 export async function crearVentaTransaccional(params: {
   user_id: string
-  id_cliente: number | null
+  empleado_id: string | null
+  id_cliente: string | null
   items: SaleItem[]
 }) {
   const client = await db.connect()
@@ -245,14 +247,14 @@ export async function crearVentaTransaccional(params: {
 
     const ventaResult = await client.query(
       `
-        INSERT INTO Venta (id_cliente, user_id, total)
-        VALUES ($1, $2, 0)
+        INSERT INTO Venta (id_cliente, user_id, empleado_id, total)
+        VALUES ($1, $2, $3, 0)
         RETURNING id
       `,
-      [params.id_cliente, params.user_id],
+      [params.id_cliente, params.user_id, params.empleado_id],
     )
 
-    const ventaId = ventaResult.rows[0].id as number
+    const ventaId = ventaResult.rows[0].id as string
 
     for (const item of params.items) {
       const precioResult = await client.query('SELECT precio FROM Producto WHERE id = $1', [
@@ -343,7 +345,7 @@ export async function createCategoria(nombre: string, descripcion?: string) {
   return result.rows[0]
 }
 
-export async function getCategoria(id: number) {
+export async function getCategoria(id: string) {
   const query = 'SELECT id, nombre, descripcion FROM Categoria WHERE id = $1'
   const result = await db.query(query, [id])
   return result.rows[0] || null
@@ -355,7 +357,7 @@ export async function getCategorias(limit = 50) {
   return result.rows
 }
 
-export async function updateCategoria(id: number, nombre?: string, descripcion?: string) {
+export async function updateCategoria(id: string, nombre?: string, descripcion?: string) {
   let query = 'UPDATE Categoria SET'
   const params: (string | number)[] = []
   const updates: string[] = []
@@ -379,7 +381,7 @@ export async function updateCategoria(id: number, nombre?: string, descripcion?:
   return result.rows[0] || null
 }
 
-export async function deleteCategoria(id: number) {
+export async function deleteCategoria(id: string) {
   const query = 'DELETE FROM Categoria WHERE id = $1 RETURNING id'
   const result = await db.query(query, [id])
   return result.rows[0] || null
@@ -399,7 +401,7 @@ export async function createProveedor(nombre: string, telefono?: string, email?:
   return result.rows[0]
 }
 
-export async function getProveedor(id: number) {
+export async function getProveedor(id: string) {
   const query = 'SELECT id, nombre, telefono, email, direccion FROM Proveedor WHERE id = $1'
   const result = await db.query(query, [id])
   return result.rows[0] || null
@@ -411,7 +413,7 @@ export async function getProveedores(limit = 50) {
   return result.rows
 }
 
-export async function updateProveedor(id: number, nombre?: string, telefono?: string, email?: string, direccion?: string) {
+export async function updateProveedor(id: string, nombre?: string, telefono?: string, email?: string, direccion?: string) {
   let query = 'UPDATE Proveedor SET'
   const params: (string | number)[] = []
   const updates: string[] = []
@@ -445,7 +447,7 @@ export async function updateProveedor(id: number, nombre?: string, telefono?: st
   return result.rows[0] || null
 }
 
-export async function deleteProveedor(id: number) {
+export async function deleteProveedor(id: string) {
   const query = 'DELETE FROM Proveedor WHERE id = $1 RETURNING id'
   const result = await db.query(query, [id])
   return result.rows[0] || null
@@ -458,8 +460,8 @@ export async function deleteProveedor(id: number) {
 export async function createProducto(
   nombre: string,
   precio: number,
-  id_categoria: number,
-  id_proveedor: number,
+  id_categoria: string,
+  id_proveedor: string,
   descripcion?: string,
   stock: number = 0,
   imagen_url?: string | null,
@@ -473,7 +475,7 @@ export async function createProducto(
   return result.rows[0]
 }
 
-export async function getProducto(id: number) {
+export async function getProducto(id: string) {
   const query = `
     SELECT id, nombre, descripcion, precio, stock, id_categoria, id_proveedor, imagen_url, activo, created_at
     FROM Producto WHERE id = $1
@@ -491,20 +493,20 @@ export async function getProductos(limit = 50, activos_solo = true) {
 }
 
 export async function updateProducto(
-  id: number,
+  id: string,
   updates: Partial<{
     nombre: string
     descripcion: string
     precio: number
     stock: number
-    id_categoria: number
-    id_proveedor: number
+    id_categoria: string
+    id_proveedor: string
     activo: boolean
     imagen_url: string | null
   }>,
 ) {
   let query = 'UPDATE Producto SET'
-  const params: any[] = []
+  const params: (string | number | boolean | null)[] = []
   const updateParts: string[] = []
 
   Object.entries(updates).forEach(([key, value]) => {
@@ -524,7 +526,7 @@ export async function updateProducto(
   return result.rows[0] || null
 }
 
-export async function deleteProducto(id: number) {
+export async function deleteProducto(id: string) {
   const query = 'DELETE FROM Producto WHERE id = $1 RETURNING id'
   const result = await db.query(query, [id])
   return result.rows[0] || null
@@ -544,7 +546,7 @@ export async function createCliente(nombre: string, email?: string, telefono?: s
   return result.rows[0]
 }
 
-export async function getCliente(id: number) {
+export async function getCliente(id: string) {
   const query = `
     SELECT id, nombre, email, telefono, created_at
     FROM Cliente WHERE id = $1
@@ -572,7 +574,7 @@ export async function getOrCreateClienteForUser(opts: { nombre: string; email: s
      WHERE email IS NOT NULL AND LOWER(TRIM(email)) = LOWER(TRIM($1)) LIMIT 1`,
     [email],
   )
-  if (find.rows[0]) return find.rows[0] as { id: number; nombre: string; email: string | null; telefono: string | null }
+  if (find.rows[0]) return find.rows[0] as { id: string; nombre: string; email: string | null; telefono: string | null }
   try {
     const ins = await db.query(
       `INSERT INTO Cliente (nombre, email, telefono, created_at)
@@ -580,7 +582,7 @@ export async function getOrCreateClienteForUser(opts: { nombre: string; email: s
        RETURNING id, nombre, email, telefono`,
       [nombre, email],
     )
-    return ins.rows[0] as { id: number; nombre: string; email: string | null; telefono: string | null }
+    return ins.rows[0] as { id: string; nombre: string; email: string | null; telefono: string | null }
   } catch (e) {
     if (typeof e === 'object' && e !== null && 'code' in e && (e as { code: string }).code === '23505') {
       const again = await db.query(
@@ -588,13 +590,13 @@ export async function getOrCreateClienteForUser(opts: { nombre: string; email: s
          WHERE email IS NOT NULL AND LOWER(TRIM(email)) = LOWER(TRIM($1)) LIMIT 1`,
         [email],
       )
-      if (again.rows[0]) return again.rows[0] as { id: number; nombre: string; email: string | null; telefono: string | null }
+      if (again.rows[0]) return again.rows[0] as { id: string; nombre: string; email: string | null; telefono: string | null }
     }
     throw e
   }
 }
 
-export async function updateCliente(id: number, nombre?: string, email?: string, telefono?: string) {
+export async function updateCliente(id: string, nombre?: string, email?: string, telefono?: string) {
   let query = 'UPDATE Cliente SET'
   const params: (string | number)[] = []
   const updates: string[] = []
@@ -623,7 +625,7 @@ export async function updateCliente(id: number, nombre?: string, email?: string,
   return result.rows[0] || null
 }
 
-export async function deleteCliente(id: number) {
+export async function deleteCliente(id: string) {
   const query = 'DELETE FROM Cliente WHERE id = $1 RETURNING id'
   const result = await db.query(query, [id])
   return result.rows[0] || null
@@ -643,7 +645,7 @@ export async function createEmpleado(user_id: string) {
   return result.rows[0]
 }
 
-export async function getEmpleado(id: number) {
+export async function getEmpleado(id: string) {
   const query = `
     SELECT e.id, e.user_id, e.activo, e.created_at, u.name, u.email, u.rol
     FROM Empleado e
@@ -665,7 +667,7 @@ export async function getEmpleados(limit = 50) {
   return result.rows
 }
 
-export async function updateEmpleado(id: number, activo?: boolean) {
+export async function updateEmpleado(id: string, activo?: boolean) {
   if (activo === undefined) return null
 
   const query = `
@@ -676,7 +678,7 @@ export async function updateEmpleado(id: number, activo?: boolean) {
   return result.rows[0] || null
 }
 
-export async function deleteEmpleado(id: number) {
+export async function deleteEmpleado(id: string) {
   const query = 'DELETE FROM Empleado WHERE id = $1 RETURNING id'
   const result = await db.query(query, [id])
   return result.rows[0] || null
@@ -686,19 +688,24 @@ export async function deleteEmpleado(id: number) {
 //  CRUD: VENTA
 // ============================================================
 
-export async function createVenta(user_id: string, id_cliente?: number | null, total: number = 0) {
+export async function createVenta(
+  user_id: string,
+  id_cliente?: string | null,
+  total: number = 0,
+  empleado_id: string | null = null,
+) {
   const query = `
-    INSERT INTO Venta (user_id, id_cliente, total, fecha, estado)
-    VALUES ($1, $2, $3, NOW(), 'completada')
-    RETURNING id, user_id, id_cliente, total, fecha, estado
+    INSERT INTO Venta (user_id, id_cliente, empleado_id, total, fecha, estado)
+    VALUES ($1, $2, $3, $4, NOW(), 'completada')
+    RETURNING id, user_id, id_cliente, empleado_id, total, fecha, estado
   `
-  const result = await db.query(query, [user_id, id_cliente || null, total])
+  const result = await db.query(query, [user_id, id_cliente || null, empleado_id, total])
   return result.rows[0]
 }
 
-export async function getVenta(id: number) {
+export async function getVenta(id: string) {
   const query = `
-    SELECT id, user_id, id_cliente, total, fecha, estado
+    SELECT id, user_id, id_cliente, empleado_id, total, fecha, estado
     FROM Venta WHERE id = $1
   `
   const result = await db.query(query, [id])
@@ -714,7 +721,7 @@ export async function getVentas(limit = 50) {
   return result.rows
 }
 
-export async function updateVenta(id: number, total?: number, estado?: string) {
+export async function updateVenta(id: string, total?: number, estado?: string) {
   let query = 'UPDATE Venta SET'
   const params: (string | number)[] = []
   const updates: string[] = []
@@ -738,7 +745,7 @@ export async function updateVenta(id: number, total?: number, estado?: string) {
   return result.rows[0] || null
 }
 
-export async function deleteVenta(id: number) {
+export async function deleteVenta(id: string) {
   const query = 'DELETE FROM Venta WHERE id = $1 RETURNING id'
   const result = await db.query(query, [id])
   return result.rows[0] || null
@@ -748,7 +755,7 @@ export async function deleteVenta(id: number) {
 //  CRUD: DETALLE VENTA
 // ============================================================
 
-export async function createDetalleVenta(id_venta: number, id_producto: number, cantidad: number, precio_unit: number) {
+export async function createDetalleVenta(id_venta: string, id_producto: string, cantidad: number, precio_unit: number) {
   const query = `
     INSERT INTO DetalleVenta (id_venta, id_producto, cantidad, precio_unit)
     VALUES ($1, $2, $3, $4)
@@ -758,7 +765,7 @@ export async function createDetalleVenta(id_venta: number, id_producto: number, 
   return result.rows[0]
 }
 
-export async function getDetalleVenta(id: number) {
+export async function getDetalleVenta(id: string) {
   const query = `
     SELECT id, id_venta, id_producto, cantidad, precio_unit, subtotal
     FROM DetalleVenta WHERE id = $1
@@ -767,7 +774,7 @@ export async function getDetalleVenta(id: number) {
   return result.rows[0] || null
 }
 
-export async function getDetallesVenta(id_venta: number) {
+export async function getDetallesVenta(id_venta: string) {
   const query = `
     SELECT id, id_venta, id_producto, cantidad, precio_unit, subtotal
     FROM DetalleVenta WHERE id_venta = $1 ORDER BY id
@@ -776,7 +783,7 @@ export async function getDetallesVenta(id_venta: number) {
   return result.rows
 }
 
-export async function updateDetalleVenta(id: number, cantidad?: number, precio_unit?: number) {
+export async function updateDetalleVenta(id: string, cantidad?: number, precio_unit?: number) {
   let query = 'UPDATE DetalleVenta SET'
   const params: (string | number)[] = []
   const updates: string[] = []
@@ -800,7 +807,7 @@ export async function updateDetalleVenta(id: number, cantidad?: number, precio_u
   return result.rows[0] || null
 }
 
-export async function deleteDetalleVenta(id: number) {
+export async function deleteDetalleVenta(id: string) {
   const query = 'DELETE FROM DetalleVenta WHERE id = $1 RETURNING id'
   const result = await db.query(query, [id])
   return result.rows[0] || null
@@ -810,14 +817,33 @@ export async function deleteDetalleVenta(id: number) {
 //  API: conteos y reportes
 // ============================================================
 
-export async function countProductosByCategoria(categoriaId: number) {
+export async function countProductosByCategoria(categoriaId: string) {
   const r = await db.query('SELECT COUNT(*)::int AS n FROM Producto WHERE id_categoria = $1', [categoriaId])
   return r.rows[0].n as number
 }
 
-export async function countProductosByProveedor(proveedorId: number) {
+export async function countProductosByProveedor(proveedorId: string) {
   const r = await db.query('SELECT COUNT(*)::int AS n FROM Producto WHERE id_proveedor = $1', [proveedorId])
   return r.rows[0].n as number
+}
+
+export async function getVentasByClienteId(clienteId: string, limit = 200) {
+  const result = await db.query(
+    `
+      SELECT
+        v.id,
+        v.fecha,
+        v.total,
+        v.estado,
+        (SELECT COUNT(*)::int FROM DetalleVenta dv WHERE dv.id_venta = v.id) AS lineas
+      FROM Venta v
+      WHERE v.id_cliente = $1
+      ORDER BY v.fecha DESC
+      LIMIT $2
+    `,
+    [clienteId, limit],
+  )
+  return result.rows
 }
 
 export async function getVentasListApi(fecha_inicio?: string | null, fecha_fin?: string | null, limit = 500) {
@@ -846,7 +872,8 @@ export async function getVentasListApi(fecha_inicio?: string | null, fecha_fin?:
       u.name AS empleado
     FROM Venta v
     LEFT JOIN Cliente c ON c.id = v.id_cliente
-    JOIN "user" u ON u.id = v.user_id
+    LEFT JOIN Empleado e ON e.id = v.empleado_id
+    LEFT JOIN "user" u ON u.id = e.user_id
     ${where}
     ORDER BY v.fecha DESC
     LIMIT $${i}
@@ -855,7 +882,7 @@ export async function getVentasListApi(fecha_inicio?: string | null, fecha_fin?:
   return result.rows
 }
 
-export async function getVentaDetalleApi(ventaId: number) {
+export async function getVentaDetalleApi(ventaId: string) {
   const head = await db.query(
     `
       SELECT
@@ -865,11 +892,12 @@ export async function getVentaDetalleApi(ventaId: number) {
         v.estado,
         c.id AS cliente_id,
         c.nombre AS cliente_nombre,
-        u.id AS empleado_id,
+        e.id AS empleado_id,
         u.name AS empleado_nombre
       FROM Venta v
       LEFT JOIN Cliente c ON c.id = v.id_cliente
-      JOIN "user" u ON u.id = v.user_id
+      LEFT JOIN Empleado e ON e.id = v.empleado_id
+      LEFT JOIN "user" u ON u.id = e.user_id
       WHERE v.id = $1
     `,
     [ventaId],
@@ -889,7 +917,7 @@ export async function getVentaDetalleApi(ventaId: number) {
   return { head: h, detalle: det.rows }
 }
 
-export async function anularVentaTransaccional(ventaId: number) {
+export async function anularVentaTransaccional(ventaId: string) {
   const client = await db.connect()
   try {
     await client.query('BEGIN')
@@ -921,7 +949,7 @@ export async function anularVentaTransaccional(ventaId: number) {
 }
 
 export async function getProductosListApi(opts: {
-  categoria?: number | null
+  categoria?: string | null
   search?: string | null
   stock_bajo?: boolean | null
   incluir_inactivos?: boolean | null
@@ -969,7 +997,7 @@ export async function getProductosListApi(opts: {
   return result.rows
 }
 
-export async function getProductoEnriquecido(id: number) {
+export async function getProductoEnriquecido(id: string) {
   const result = await db.query(
     `
       SELECT
@@ -994,7 +1022,7 @@ export async function getProductoEnriquecido(id: number) {
   return result.rows[0] || null
 }
 
-export async function softDeleteProducto(id: number) {
+export async function softDeleteProducto(id: string) {
   const result = await db.query(
     'UPDATE Producto SET activo = FALSE WHERE id = $1 RETURNING id',
     [id],
@@ -1002,7 +1030,7 @@ export async function softDeleteProducto(id: number) {
   return result.rows[0] || null
 }
 
-export async function getClienteConStats(id: number) {
+export async function getClienteConStats(id: string) {
   const base = await getCliente(id)
   if (!base) return null
   const stats = await db.query(
@@ -1231,4 +1259,19 @@ export async function getEmpleadoByUserId(userId: string) {
     [userId],
   )
   return r.rows[0] || null
+}
+
+/** Vincula la sesión de personal (admin/cajero) a un registro Empleado para ventas en POS. */
+export async function getOrCreateEmpleadoForUser(userId: string) {
+  const existing = await getEmpleadoByUserId(userId)
+  if (existing) return existing
+  try {
+    return await createEmpleado(userId)
+  } catch (e) {
+    if (typeof e === 'object' && e !== null && 'code' in e && (e as { code: string }).code === '23505') {
+      const again = await getEmpleadoByUserId(userId)
+      if (again) return again
+    }
+    throw e
+  }
 }

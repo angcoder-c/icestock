@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { json, mapProductoApi } from '#/lib/api/http'
 import { getSessionUser } from '#/lib/api/session'
+import { isUuid } from '#/lib/is-uuid'
 import * as db from '#/lib/db'
 
 export const Route = createFileRoute('/api/productos')({
@@ -11,16 +12,17 @@ export const Route = createFileRoute('/api/productos')({
         const user = await getSessionUser(request)
         const url = new URL(request.url)
         const categoria = url.searchParams.get('categoria')
-        const catNum = categoria != null && categoria !== '' ? Number(categoria) : null
-        if (categoria != null && categoria !== '' && (catNum == null || !Number.isFinite(catNum))) {
-          return json({ error: 'Parámetro categoria inválido' }, 400)
+        let catId: string | null = null
+        if (categoria != null && categoria !== '') {
+          if (!isUuid(categoria)) return json({ error: 'Parámetro categoria inválido' }, 400)
+          catId = categoria
         }
         const search = url.searchParams.get('search')
 
         if (!user) {
           try {
             const rows = await db.getProductosListApi({
-              categoria: catNum,
+              categoria: catId,
               search: search || null,
               stock_bajo: false,
               incluir_inactivos: false,
@@ -40,7 +42,7 @@ export const Route = createFileRoute('/api/productos')({
         const incluir = url.searchParams.get('incluir_inactivos')
         try {
           const rows = await db.getProductosListApi({
-            categoria: catNum,
+            categoria: catId,
             search: search || null,
             stock_bajo: stock_bajo === 'true',
             incluir_inactivos: incluir === 'true',
@@ -63,8 +65,8 @@ export const Route = createFileRoute('/api/productos')({
           descripcion?: string
           precio?: number
           stock?: number
-          id_categoria?: number
-          id_proveedor?: number
+          id_categoria?: string
+          id_proveedor?: string
           imagen_url?: string | null
         }
         try {
@@ -79,6 +81,9 @@ export const Route = createFileRoute('/api/productos')({
         if (body.id_categoria == null || body.id_proveedor == null) {
           return json({ error: 'id_categoria e id_proveedor son obligatorios' }, 400)
         }
+        if (!isUuid(body.id_categoria) || !isUuid(body.id_proveedor)) {
+          return json({ error: 'id_categoria o id_proveedor no son UUID válidos' }, 400)
+        }
         const row = await db.createProducto(
           body.nombre.trim(),
           Number(body.precio),
@@ -88,7 +93,7 @@ export const Route = createFileRoute('/api/productos')({
           body.stock ?? 0,
           body.imagen_url ?? null,
         )
-        const full = await db.getProductoEnriquecido(row.id as number)
+        const full = await db.getProductoEnriquecido(row.id as string)
         if (!full) return json({ error: 'Producto creado pero no se pudo leer' }, 500)
         return json(mapProductoApi(full as never), 201)
       },

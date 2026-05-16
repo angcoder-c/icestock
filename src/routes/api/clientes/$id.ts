@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { fmtMoney, json } from '#/lib/api/http'
 import { getSessionUser, isStaffUser } from '#/lib/api/session'
 import * as db from '#/lib/db'
+import { isUuid } from '#/lib/is-uuid'
 
 export const Route = createFileRoute('/api/clientes/$id')({
   server: {
@@ -11,8 +12,8 @@ export const Route = createFileRoute('/api/clientes/$id')({
         const user = await getSessionUser(request)
         if (!user) return json({ error: 'No autenticado' }, 401)
         if (!isStaffUser(user)) return json({ error: 'No autorizado' }, 403)
-        const id = Number(params.id)
-        if (!Number.isFinite(id)) return json({ error: 'ID inválido' }, 400)
+        const id = params.id
+        if (!isUuid(id)) return json({ error: 'ID inválido' }, 400)
         const row = await db.getClienteConStats(id)
         if (!row) return json({ error: 'Cliente no encontrado' }, 404)
         const created = row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at)
@@ -30,8 +31,8 @@ export const Route = createFileRoute('/api/clientes/$id')({
         const user = await getSessionUser(request)
         if (!user) return json({ error: 'No autenticado' }, 401)
         if (!isStaffUser(user)) return json({ error: 'No autorizado' }, 403)
-        const id = Number(params.id)
-        if (!Number.isFinite(id)) return json({ error: 'ID inválido' }, 400)
+        const id = params.id
+        if (!isUuid(id)) return json({ error: 'ID inválido' }, 400)
         let body: { nombre?: string; email?: string; telefono?: string }
         try {
           body = (await request.json()) as typeof body
@@ -46,8 +47,8 @@ export const Route = createFileRoute('/api/clientes/$id')({
         const user = await getSessionUser(request)
         if (!user) return json({ error: 'No autenticado' }, 401)
         if (!isStaffUser(user)) return json({ error: 'No autorizado' }, 403)
-        const id = Number(params.id)
-        if (!Number.isFinite(id)) return json({ error: 'ID inválido' }, 400)
+        const id = params.id
+        if (!isUuid(id)) return json({ error: 'ID inválido' }, 400)
         const row = await db.deleteCliente(id)
         if (!row) return json({ error: 'Cliente no encontrado' }, 404)
         return json({ mensaje: 'Cliente eliminado correctamente' })

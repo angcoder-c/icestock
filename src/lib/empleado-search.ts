@@ -24,3 +24,9 @@ export function parseEmpleadoSearch(raw: Record<string, unknown>): EmpleadoSearc
     reportSub: parseReportSub(raw.reportSub),
   }
 }
+
+/** Al volver de un modal anidado bajo `/empleado`. */
+export function empleadoModalReturnSearch(s: EmpleadoSearch): EmpleadoSearch {
+  if (s.tab === 'reportes') return { tab: 'reportes', reportSub: s.reportSub ?? 'hoy' }
+  return { tab: s.tab ?? 'productos' }
+}

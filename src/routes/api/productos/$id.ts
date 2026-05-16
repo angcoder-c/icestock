@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { json, mapProductoApi } from '#/lib/api/http'
 import { getSessionUser } from '#/lib/api/session'
+import { isUuid } from '#/lib/is-uuid'
 import * as db from '#/lib/db'
 
 export const Route = createFileRoute('/api/productos/$id')({
@@ -10,8 +11,8 @@ export const Route = createFileRoute('/api/productos/$id')({
       GET: async ({ request, params }) => {
         const user = await getSessionUser(request)
         if (!user) return json({ error: 'No autenticado' }, 401)
-        const id = Number(params.id)
-        if (!Number.isFinite(id)) return json({ error: 'ID inválido' }, 400)
+        const id = params.id
+        if (!isUuid(id)) return json({ error: 'ID inválido' }, 400)
         const row = await db.getProductoEnriquecido(id)
         if (!row) return json({ error: 'Producto no encontrado' }, 404)
         return json(mapProductoApi(row as never))
@@ -19,15 +20,15 @@ export const Route = createFileRoute('/api/productos/$id')({
       PUT: async ({ request, params }) => {
         const user = await getSessionUser(request)
         if (!user) return json({ error: 'No autenticado' }, 401)
-        const id = Number(params.id)
-        if (!Number.isFinite(id)) return json({ error: 'ID inválido' }, 400)
+        const id = params.id
+        if (!isUuid(id)) return json({ error: 'ID inválido' }, 400)
         let body: Partial<{
           nombre: string
           descripcion: string
           precio: number
           stock: number
-          id_categoria: number
-          id_proveedor: number
+          id_categoria: string
+          id_proveedor: string
           activo: boolean
           imagen_url: string | null
         }>
@@ -39,6 +40,12 @@ export const Route = createFileRoute('/api/productos/$id')({
         if (body.precio != null && Number(body.precio) <= 0) {
           return json({ error: 'El precio debe ser mayor a 0' }, 400)
         }
+        if (body.id_categoria != null && !isUuid(body.id_categoria)) {
+          return json({ error: 'id_categoria inválido' }, 400)
+        }
+        if (body.id_proveedor != null && !isUuid(body.id_proveedor)) {
+          return json({ error: 'id_proveedor inválido' }, 400)
+        }
         const row = await db.updateProducto(id, body)
         if (!row) return json({ error: 'Producto no encontrado' }, 404)
         const full = await db.getProductoEnriquecido(id)
@@ -48,8 +55,8 @@ export const Route = createFileRoute('/api/productos/$id')({
       DELETE: async ({ request, params }) => {
         const user = await getSessionUser(request)
         if (!user) return json({ error: 'No autenticado' }, 401)
-        const id = Number(params.id)
-        if (!Number.isFinite(id)) return json({ error: 'ID inválido' }, 400)
+        const id = params.id
+        if (!isUuid(id)) return json({ error: 'ID inválido' }, 400)
         const row = await db.softDeleteProducto(id)
         if (!row) return json({ error: 'Producto no encontrado' }, 404)
         return json({ mensaje: 'Producto desactivado correctamente' })

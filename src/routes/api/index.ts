@@ -14,6 +14,7 @@ export const Route = createFileRoute('/api/')({
             meta: {
               openapi: '/openapi.json',
               documentacion: '/api/docs',
+              swagger: '/api/docs',
               humanDocs: '/docs/endpoints.md',
             },
             data,

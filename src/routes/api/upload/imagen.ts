@@ -4,6 +4,7 @@ import { json, mapProductoApi } from '#/lib/api/http'
 import { getSessionUser, isStaffUser } from '#/lib/api/session'
 import { cloudinaryConfigured, resolveImageMime, uploadImageBuffer } from '#/lib/cloudinary-upload'
 import * as db from '#/lib/db'
+import { isUuid } from '#/lib/is-uuid'
 
 export const Route = createFileRoute('/api/upload/imagen')({
   server: {
@@ -39,8 +40,8 @@ export const Route = createFileRoute('/api/upload/imagen')({
 
         let producto: ReturnType<typeof mapProductoApi> | undefined
         if (typeof idProductoRaw === 'string' && idProductoRaw.trim()) {
-          const id = Number(idProductoRaw)
-          if (Number.isFinite(id)) {
+          const id = idProductoRaw.trim()
+          if (isUuid(id)) {
             const row = await db.updateProducto(id, { imagen_url: secure_url })
             if (row) {
               const full = await db.getProductoEnriquecido(id)

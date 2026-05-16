@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { fmtMoney, json } from '#/lib/api/http'
 import { getSessionUser } from '#/lib/api/session'
 import * as db from '#/lib/db'
+import { isUuid } from '#/lib/is-uuid'
 
 export const Route = createFileRoute('/api/ventas/$id')({
   server: {
@@ -10,19 +11,19 @@ export const Route = createFileRoute('/api/ventas/$id')({
       GET: async ({ request, params }) => {
         const user = await getSessionUser(request)
         if (!user) return json({ error: 'No autenticado' }, 401)
-        const id = Number(params.id)
-        if (!Number.isFinite(id)) return json({ error: 'ID inválido' }, 400)
+        const id = params.id
+        if (!isUuid(id)) return json({ error: 'ID inválido' }, 400)
         const data = await db.getVentaDetalleApi(id)
         if (!data) return json({ error: 'Venta no encontrada' }, 404)
         const h = data.head as {
-          id: number
+          id: string
           fecha: Date | string
           total: unknown
           estado: string
-          cliente_id: number | null
+          cliente_id: string | null
           cliente_nombre: string | null
-          empleado_id: string
-          empleado_nombre: string
+          empleado_id: string | null
+          empleado_nombre: string | null
         }
         return json({
           id: h.id,
@@ -30,7 +31,10 @@ export const Route = createFileRoute('/api/ventas/$id')({
           total: fmtMoney(h.total),
           estado: h.estado,
           cliente: h.cliente_id != null ? { id: h.cliente_id, nombre: h.cliente_nombre } : null,
-          empleado: { id: h.empleado_id, nombre: h.empleado_nombre },
+          empleado:
+            h.empleado_id != null
+              ? { id: h.empleado_id, nombre: h.empleado_nombre ?? '' }
+              : null,
           detalle: (data.detalle as { id_producto: number; producto: string; cantidad: number; precio_unit: unknown; subtotal: unknown }[]).map(
             (d) => ({
               id_producto: d.id_producto,
@@ -48,8 +52,8 @@ export const Route = createFileRoute('/api/ventas/$id')({
         if (user.rol !== 'admin') {
           return json({ error: 'Solo un administrador puede anular ventas' }, 403)
         }
-        const id = Number(params.id)
-        if (!Number.isFinite(id)) return json({ error: 'ID inválido' }, 400)
+        const id = params.id
+        if (!isUuid(id)) return json({ error: 'ID inválido' }, 400)
         try {
           await db.anularVentaTransaccional(id)
           return json({ mensaje: 'Venta anulada y stock restaurado' })
