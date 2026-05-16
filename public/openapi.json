@@ -3,9 +3,9 @@
   "info": {
     "title": "IceStock API",
     "version": "1.0.0",
-    "description": "REST API alineada con `docs/endpoints.md`. Todas las respuestas de negocio bajo `/api` son JSON (`application/json`); no se usan 204 ni cuerpos vacíos. Autenticación: sesión Better Auth (cookie). Tras `POST /api/auth/sign-in/email`, el navegador envía la cookie automáticamente."
+    "description": "REST API alineada con `docs/endpoints.md`. Todas las respuestas de negocio bajo `/api` son JSON (`application/json`). Autenticación: sesión Better Auth (cookie). Tras `POST /api/auth/sign-in/email`, el navegador envia la cookie automáticamente."
   },
-  "servers": [{ "url": "http://localhost:3000", "description": "Vite dev (ajusta el puerto si cambias `npm run dev`)" }],
+  "servers": [{ "url": "http://localhost:3000" }],
   "tags": [
     { "name": "Categorías" },
     { "name": "Productos" },
@@ -32,10 +32,15 @@
         "properties": { "error": { "type": "string" } },
         "required": ["error"]
       },
+      "Uuid": {
+        "type": "string",
+        "format": "uuid",
+        "description": "Identificador UUID (PK/FK en tablas de negocio)."
+      },
       "Categoria": {
         "type": "object",
         "properties": {
-          "id": { "type": "integer" },
+          "id": { "$ref": "#/components/schemas/Uuid" },
           "nombre": { "type": "string" },
           "descripcion": { "type": "string", "nullable": true }
         }
@@ -43,14 +48,26 @@
       "Producto": {
         "type": "object",
         "properties": {
-          "id": { "type": "integer" },
+          "id": { "$ref": "#/components/schemas/Uuid" },
           "nombre": { "type": "string" },
           "descripcion": { "type": "string", "nullable": true },
           "precio": { "type": "string", "example": "15.00" },
           "stock": { "type": "integer" },
           "activo": { "type": "boolean" },
-          "categoria": { "type": "object" },
-          "proveedor": { "type": "object" },
+          "categoria": {
+            "type": "object",
+            "properties": {
+              "id": { "$ref": "#/components/schemas/Uuid" },
+              "nombre": { "type": "string" }
+            }
+          },
+          "proveedor": {
+            "type": "object",
+            "properties": {
+              "id": { "$ref": "#/components/schemas/Uuid" },
+              "nombre": { "type": "string" }
+            }
+          },
           "imagen_url": { "type": "string", "nullable": true, "description": "URL pública de la foto (p. ej. Cloudinary o CDN)" }
         }
       }
@@ -71,21 +88,14 @@
     "/api/docs": {
       "get": {
         "tags": ["Meta"],
-        "summary": "Metadatos de documentación (JSON)",
+        "summary": "Documentación interactiva (Swagger UI)",
         "security": [],
         "responses": {
           "200": {
-            "description": "JSON con enlaces al spec OpenAPI y nota de uso",
+            "description": "Página HTML con Swagger UI; el contrato OpenAPI está en `/openapi.json`",
             "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "ok": { "type": "boolean" },
-                    "openapi": { "type": "string" },
-                    "mensaje": { "type": "string" }
-                  }
-                }
+              "text/html": {
+                "schema": { "type": "string" }
               }
             }
           }
@@ -123,13 +133,13 @@
       "put": {
         "tags": ["Categorías"],
         "summary": "Actualizar categoría",
-        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "$ref": "#/components/schemas/Uuid" } }],
         "responses": { "200": { "description": "OK" }, "404": { "description": "No encontrada" } }
       },
       "delete": {
         "tags": ["Categorías"],
         "summary": "Eliminar categoría (409 si hay productos)",
-        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "$ref": "#/components/schemas/Uuid" } }],
         "responses": { "200": { "description": "Eliminada" }, "409": { "description": "Conflicto FK" } }
       }
     },
@@ -138,7 +148,7 @@
         "tags": ["Productos"],
         "summary": "Listar productos (filtros opcionales)",
         "parameters": [
-          { "name": "categoria", "in": "query", "schema": { "type": "integer" } },
+          { "name": "categoria", "in": "query", "schema": { "$ref": "#/components/schemas/Uuid" }, "description": "Filtrar por id de categoría" },
           { "name": "search", "in": "query", "schema": { "type": "string" } },
           { "name": "stock_bajo", "in": "query", "schema": { "type": "boolean" } },
           { "name": "incluir_inactivos", "in": "query", "schema": { "type": "boolean" } }
@@ -148,6 +158,26 @@
       "post": {
         "tags": ["Productos"],
         "summary": "Crear producto",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["nombre", "precio", "id_categoria", "id_proveedor"],
+                "properties": {
+                  "nombre": { "type": "string" },
+                  "descripcion": { "type": "string", "nullable": true },
+                  "precio": { "type": "number", "exclusiveMinimum": 0 },
+                  "stock": { "type": "integer", "minimum": 0 },
+                  "id_categoria": { "$ref": "#/components/schemas/Uuid" },
+                  "id_proveedor": { "$ref": "#/components/schemas/Uuid" },
+                  "imagen_url": { "type": "string", "nullable": true }
+                }
+              }
+            }
+          }
+        },
         "responses": { "201": { "description": "Creado" }, "400": { "description": "Validación" } }
       }
     },
@@ -165,7 +195,7 @@
                 "required": ["file"],
                 "properties": {
                   "file": { "type": "string", "format": "binary" },
-                  "id_producto": { "type": "integer", "description": "Si se envía, actualiza Producto.imagen_url tras la subida" }
+                  "id_producto": { "type": "string", "format": "uuid", "description": "Si se envía, actualiza Producto.imagen_url tras la subida" }
                 }
               }
             }
@@ -183,18 +213,18 @@
     "/api/productos/{id}": {
       "get": {
         "tags": ["Productos"],
-        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "$ref": "#/components/schemas/Uuid" } }],
         "responses": { "200": { "description": "OK" }, "404": { "description": "No encontrado" } }
       },
       "put": {
         "tags": ["Productos"],
-        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "$ref": "#/components/schemas/Uuid" } }],
         "responses": { "200": { "description": "OK" } }
       },
       "delete": {
         "tags": ["Productos"],
         "summary": "Baja lógica (activo=false)",
-        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "$ref": "#/components/schemas/Uuid" } }],
         "responses": { "200": { "description": "Desactivado" } }
       }
     },
@@ -203,17 +233,17 @@
       "post": { "tags": ["Proveedores"], "summary": "Crear proveedor", "responses": { "201": { "description": "Creado" } } }
     },
     "/api/proveedores/{id}": {
-      "put": { "tags": ["Proveedores"], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "OK" } } },
-      "delete": { "tags": ["Proveedores"], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "OK" }, "409": { "description": "Tiene productos" } } }
+      "put": { "tags": ["Proveedores"], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "$ref": "#/components/schemas/Uuid" } }], "responses": { "200": { "description": "OK" } } },
+      "delete": { "tags": ["Proveedores"], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "$ref": "#/components/schemas/Uuid" } }], "responses": { "200": { "description": "OK" }, "409": { "description": "Tiene productos" } } }
     },
     "/api/clientes": {
       "get": { "tags": ["Clientes"], "summary": "Listar clientes", "responses": { "200": { "description": "OK" } } },
       "post": { "tags": ["Clientes"], "summary": "Crear cliente", "responses": { "201": { "description": "Creado" } } }
     },
     "/api/clientes/{id}": {
-      "get": { "tags": ["Clientes"], "summary": "Detalle + estadísticas de compras", "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "OK" } } },
-      "put": { "tags": ["Clientes"], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "OK" } } },
-      "delete": { "tags": ["Clientes"], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "OK" } } }
+      "get": { "tags": ["Clientes"], "summary": "Detalle + estadísticas de compras", "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "$ref": "#/components/schemas/Uuid" } }], "responses": { "200": { "description": "OK" } } },
+      "put": { "tags": ["Clientes"], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "$ref": "#/components/schemas/Uuid" } }], "responses": { "200": { "description": "OK" } } },
+      "delete": { "tags": ["Clientes"], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "$ref": "#/components/schemas/Uuid" } }], "responses": { "200": { "description": "OK" } } }
     },
     "/api/ventas": {
       "get": {
@@ -228,14 +258,15 @@
       "post": {
         "tags": ["Ventas"],
         "summary": "Registrar venta (transacción + stock)",
+        "description": "empleado_id se guarda en servidor cuando la sesión es admin/cajero; queda null si el cliente compra por su cuenta (rol cliente).",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
                 "properties": {
-                  "id_cliente": { "type": "integer", "nullable": true },
-                  "items": { "type": "array", "items": { "type": "object", "required": ["id_producto", "cantidad"], "properties": { "id_producto": { "type": "integer" }, "cantidad": { "type": "integer", "minimum": 1 } } } }
+                  "id_cliente": { "type": "string", "format": "uuid", "nullable": true, "description": "Cliente registrado; omitir o null = mostrador" },
+                  "items": { "type": "array", "items": { "type": "object", "required": ["id_producto", "cantidad"], "properties": { "id_producto": { "$ref": "#/components/schemas/Uuid" }, "cantidad": { "type": "integer", "minimum": 1 } } } }
                 },
                 "required": ["items"]
               }
@@ -246,11 +277,11 @@
       }
     },
     "/api/ventas/{id}": {
-      "get": { "tags": ["Ventas"], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "Detalle con líneas" } } },
+      "get": { "tags": ["Ventas"], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "$ref": "#/components/schemas/Uuid" } }], "responses": { "200": { "description": "Detalle con líneas" } } },
       "delete": {
         "tags": ["Ventas"],
         "summary": "Anular venta y restaurar stock (solo admin)",
-        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "$ref": "#/components/schemas/Uuid" } }],
         "responses": { "200": { "description": "Anulada" }, "403": { "description": "No admin" } }
       }
     },
@@ -259,8 +290,8 @@
       "post": { "tags": ["Empleados"], "summary": "Alta empleado (user + account + fila Empleado)", "responses": { "201": { "description": "Creado" }, "400": { "description": "Email duplicado" } } }
     },
     "/api/empleados/{userId}": {
-      "put": { "tags": ["Empleados"], "parameters": [{ "name": "userId", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "OK" } } },
-      "delete": { "tags": ["Empleados"], "summary": "Desactivar empleado", "parameters": [{ "name": "userId", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "OK" } } }
+      "put": { "tags": ["Empleados"], "parameters": [{ "name": "userId", "in": "path", "required": true, "schema": { "type": "string" }, "description": "Id de usuario Better Auth" }], "responses": { "200": { "description": "OK" } } },
+      "delete": { "tags": ["Empleados"], "summary": "Desactivar empleado", "parameters": [{ "name": "userId", "in": "path", "required": true, "schema": { "type": "string" }, "description": "Id de usuario Better Auth" }], "responses": { "200": { "description": "OK" } } }
     },
     "/api/reportes/ventas-del-dia": {
       "get": {
