@@ -10,20 +10,9 @@ type SaleItem = {
   cantidad: number
 }
 
-const dbUser = process.env.DB_USER ?? process.env.VITE_DB_USER ?? 'postgres'
-const dbPassword = process.env.DB_PASSWORD ?? process.env.VITE_DB_PASSWORD ?? 'postgres'
-const dbHost = process.env.DB_HOST ?? process.env.VITE_DB_HOST ?? 'localhost'
-const dbName = process.env.DB_NAME ?? process.env.VITE_DB_NAME ?? 'icestock'
-const dbPort = Number(process.env.DB_PORT ?? process.env.VITE_DB_PORT ?? 5432)
+import { pgPoolConfig } from '#/lib/pg-config'
 
-const connectionString =
-  process.env.VITE_DATABASE_URL ??
-  process.env.DATABASE_URL ??
-  `postgres://${dbUser}:${dbPassword}@${dbHost}:${dbPort}/${dbName}`
-
-export const db = new pg.Pool({
-  connectionString,
-})
+export const db = new pg.Pool(pgPoolConfig())
 
 // ============================================================
 //  AUTENTICACIÓN: Usar Better Auth via sus APIs automáticas
