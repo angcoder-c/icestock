@@ -3,8 +3,11 @@
 <p align="center">
   <img src="./public/logo.png" alt="IceStock" width="140" />
 </p>
-<a href="https://icestock.vercel.app" align="center">icestock.vercel.app</a>
-<p align="center"><strong>Inventario y ventas para heladería</strong></p>
+
+<p align="center">
+  <strong>Inventario y ventas para heladería</strong>
+  <a href="https://icestock.vercel.app" align="center">icestock.vercel.app</a>
+</p>
 
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-316192?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 
