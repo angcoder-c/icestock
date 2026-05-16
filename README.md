@@ -2,6 +2,7 @@
 
 <p align="center">
   <img src="./public/logo.png" alt="IceStock" width="140" />
+  <a href="https://icestock.vercel.app">icestock.vercel.app</a>
 </p>
 
 <p align="center"><strong>Inventario y ventas para heladería</strong></p>
