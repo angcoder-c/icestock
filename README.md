@@ -1,227 +1,115 @@
-Welcome to your new TanStack Start app! 
+<h1 align="center">IceStock</h1>
 
-# Getting Started
+<p align="center">
+  <img src="./public/logo.png" alt="IceStock" width="140" />
+</p>
 
-To run this application:
+<p align="center"><strong>Inventario y ventas para heladería</strong></p>
+
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-316192?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+
+[![Cloudinary](https://img.shields.io/badge/Cloudinary-enabled-3448C5?logo=cloudinary&logoColor=white)](https://cloudinary.com/)
+---
+
+Aplicación web para **inventario y ventas** de una tienda: catálogo público, portales de administración y cajero, reportes y autenticación con Better Auth.
+
+## Arquitectura: API REST + cliente React
+
+El flujo de negocio va por **API REST con respuestas JSON**; el navegador es un **cliente React** que consume `/api/...` con `fetch` (TanStack Query). **El frontend no se conecta a PostgreSQL.**
+
+- **Backend:** rutas bajo `/api/productos`, `/api/ventas`, `/api/reportes/...`, Better Auth en `/api/auth/...`.
+- **Cliente:** React 19, Context (sesión, carrito), TanStack Router en `src/routes/`.
+- **Stack:** TanStack Start + Vite; en desarrollo el mismo proceso sirve UI y handlers.
+
+---
+
+## Documentación
+
+
+| Tema                                          | Archivo                                                          |
+| --------------------------------------------- | ---------------------------------------------------------------- |
+| **API**                                       | [docs/endpoints.md](docs/endpoints.md)                           |
+| **API (OpenAPI)**                             | [docs/openapi.json](docs/openapi.json)                           |
+| **Swagger UI**                                | [http://localhost:3000/api/docs](http://localhost:3000/api/docs) |
+| **Autenticación**                             | [docs/auth.md](docs/auth.md)                                     |
+| **Base de datos — normalización (0FN → 3FN)** | [docs/db/normalization.md](docs/db/normalization.md)             |
+| **Base de datos — consultas SQL**             | [docs/db/queries.md](docs/db/queries.md)                         |
+| **Diagrama ER**                               | [docs/db/er.diagram.png](docs/db/er.diagram.png)                 |
+| **Diagrama relacional**                       | [docs/db/relational.diagram.png](docs/db/relational.diagram.png) |
+| **Esquema SQL (init Docker)**                 | [db/schema.sql](db/schema.sql)                                   |
+
+
+---
+
+## Requisitos
+
+- [Docker](https://docs.docker.com/get-docker/) y Docker Compose v2  
+- **Node.js** 22+ y npm (opcional si solo usas Docker)
+
+---
+
+## Puesta en marcha con Docker
+
+```bash
+cp .env.example .env
+docker compose up
+```
+
+- **App:** [http://localhost:3000](http://localhost:3000)  
+- **PostgreSQL:** puerto host **5433** → `5432` en el contenedor  
+- **Init:** `db/schema.sql` se aplica en el primer arranque con volumen vacío
+
+Variables de calificación en `.env.example`: usuario DB `**proy2`**, contraseña `**secret**`. Define un `BETTER_AUTH_SECRET` largo. Opcional: `CLOUDINARY_URL` para imágenes.
+
+---
+
+## Desarrollo local (sin Docker)
 
 ```bash
 npm install
 npm run dev
 ```
 
-# Building For Production
+Puerto por defecto: **3000**. OpenAPI estático: `/openapi.json`.
 
-To build this application for production:
+---
 
-```bash
-npm run build
-```
+## Scripts
 
-## API REST (negocio)
 
-- **Documentación humana**: [docs/endpoints.md](docs/endpoints.md)
-- **OpenAPI 3** (misma especificación en dos sitios): [public/openapi.json](public/openapi.json) (sirve Vite en `/openapi.json`) y [docs/openapi.json](docs/openapi.json)
-- **Metadatos de documentación (JSON)**: `GET /api/docs` devuelve JSON con el enlace al spec (`openapi`) y una nota de uso; importa `/openapi.json` en Postman, Stoplight o Swagger Editor para explorar el contrato.
-- **Resumen agregado (dashboard)**: `GET /api/` devuelve datos de ejemplo para gráficos y enlaces en `meta` (`openapi`, `documentacion`, `humanDocs`).
+| Comando             | Descripción                        |
+| ------------------- | ---------------------------------- |
+| `npm run dev`       | Desarrollo (Vite + TanStack Start) |
+| `npm run build`     | Build cliente y servidor           |
+| `npm run preview`   | Vista previa del build             |
+| `npm run lint`      | ESLint                             |
+| `npm test`          | Vitest                             |
+| `npm run test:jest` | Jest (OpenAPI, HTTP, UI)           |
 
-Las rutas bajo `/api/categorias`, `/api/productos`, `/api/ventas`, etc. requieren sesión Better Auth (inicia sesión vía `POST /api/auth/sign-in/email` y cookie).
 
-### Imágenes de productos y Cloudinary
+---
 
-- **Columna** `Producto.imagen_url` (texto, opcional): URL pública de la foto.
-- **Datos de prueba**: el `db/schema.sql` asigna la misma imagen de ejemplo a todos los productos seed; si ya tenías una base creada antes, ejecuta `db/migrations/001_producto_imagen_url.sql` sobre PostgreSQL.
-- **Subida**: `POST /api/upload/imagen` (multipart `file`, opcional `id_producto`) sube a Cloudinary y, si mandas `id_producto`, actualiza ese producto. Solo **personal** (`admin` / `cajero`), no clientes. Configura `CLOUDINARY_URL` en `.env` (formato `cloudinary://API_KEY:API_SECRET@cloud_name`, ver `.env.example`).
+## Calidad y pruebas
 
-### Frontend (rúbrica React)
+- ESLint: [eslint.config.js](eslint.config.js)  
+- Jest: `tests/openapi.test.ts`, `tests/http.test.ts`, `tests/ui/*.test.tsx`  
+- Vitest: `npm test`
 
-- **Context** (`IcestockProvider`): sesión Better Auth + carrito global.
-- **useReducer**: carrito (`cart-reducer.ts`) — líneas, cantidades, drawer; cada línea puede llevar `imagen_url` para miniaturas.
-- **useCallback / useMemo**: handlers de carrito en contexto; totales y filtros memoizados en la UI.
-- **TanStack Query**: productos (`/api/productos`) y reporte del día (`/api/reportes/ventas-del-dia`); mutación `POST /api/ventas` al confirmar pedido.
-- **Formularios controlados**: acceso en `/login` (elegir perfil), `/login/cliente` y `/login/empleado`; datos del pedido en el POS de tienda con validación (`validation/order-form.ts`).
-- **Prueba de integración (Vitest)**: `src/icestock.integration.test.ts` — reducer + validación + hook con `fetch` simulado.
+---
 
-### Pruebas
+## Imágenes
 
-- **Vitest** (componentes / proyecto): `npm run test`
-- **Jest** (contrato OpenAPI + helpers HTTP): `npm run test:jest`
+- Columna `Producto.imagen_url`  
+- `POST /api/upload/imagen` (autorizado), variable `CLOUDINARY_URL`
 
-## Styling
+---
 
-This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
+## Despliegue
 
-### Removing Tailwind CSS
+Compilar con `npm run build` y desplegar con las mismas variables de `.env.example`. Configuración opcional Cloudflare Workers (`wrangler`).
 
-If you prefer not to use Tailwind CSS:
+---
 
-1. Remove the demo pages in `src/routes/demo/`
-2. Replace the Tailwind import in `src/styles.css` with your own styles
-3. Remove `tailwindcss()` from the plugins array in `vite.config.ts`
-4. Uninstall the packages: `npm install @tailwindcss/vite tailwindcss -D`
+## Licencia
 
-
-## Deploy to Cloudflare Workers
-
-This project uses the Cloudflare Vite plugin (configured in `vite.config.ts`) and `wrangler.jsonc`:
-
-1. Install Wrangler: `npm install -g wrangler`
-2. Authenticate: `wrangler login`
-3. Deploy: `npx wrangler deploy`
-
-For production env vars, run `wrangler secret put MY_VAR` for each secret listed in `.env.example`. Public (non-secret) vars go in `wrangler.jsonc` under `vars`.
-
-KV, D1, R2, and Durable Object bindings are configured in `wrangler.jsonc` — see https://developers.cloudflare.com/workers/wrangler/configuration/.
-
-
-
-## Routing
-
-This project uses [TanStack Router](https://tanstack.com/router) with file-based routing. Routes are managed as files in `src/routes`.
-
-### Adding A Route
-
-To add a new route to your application just add a new file in the `./src/routes` directory.
-
-TanStack will automatically generate the content of the route file for you.
-
-Now that you have two routes you can use a `Link` component to navigate between them.
-
-### Adding Links
-
-To use SPA (Single Page Application) navigation you will need to import the `Link` component from `@tanstack/react-router`.
-
-```tsx
-import { Link } from "@tanstack/react-router";
-```
-
-Then anywhere in your JSX you can use it like so:
-
-```tsx
-<Link to="/about">About</Link>
-```
-
-This will create a link that will navigate to the `/about` route.
-
-More information on the `Link` component can be found in the [Link documentation](https://tanstack.com/router/v1/docs/framework/react/api/router/linkComponent).
-
-### Using A Layout
-
-In the File Based Routing setup the layout is located in `src/routes/__root.tsx`. Anything you add to the root route will appear in all the routes. The route content will appear in the JSX where you render `{children}` in the `shellComponent`.
-
-Here is an example layout that includes a header:
-
-```tsx
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
-
-export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'My App' },
-    ],
-  }),
-  shellComponent: ({ children }) => (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        <header>
-          <nav>
-            <Link to="/">Home</Link>
-            <Link to="/about">About</Link>
-          </nav>
-        </header>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  ),
-})
-```
-
-More information on layouts can be found in the [Layouts documentation](https://tanstack.com/router/latest/docs/framework/react/guide/routing-concepts#layouts).
-
-## Server Functions
-
-TanStack Start provides server functions that allow you to write server-side code that seamlessly integrates with your client components.
-
-```tsx
-import { createServerFn } from '@tanstack/react-start'
-
-const getServerTime = createServerFn({
-  method: 'GET',
-}).handler(async () => {
-  return new Date().toISOString()
-})
-
-// Use in a component
-function MyComponent() {
-  const [time, setTime] = useState('')
-  
-  useEffect(() => {
-    getServerTime().then(setTime)
-  }, [])
-  
-  return <div>Server time: {time}</div>
-}
-```
-
-## API Routes
-
-You can create API routes by using the `server` property in your route definitions:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-import { json } from '@tanstack/react-start'
-
-export const Route = createFileRoute('/api/hello')({
-  server: {
-    handlers: {
-      GET: () => json({ message: 'Hello, World!' }),
-    },
-  },
-})
-```
-
-## Data Fetching
-
-There are multiple ways to fetch data in your application. You can use TanStack Query to fetch data from a server. But you can also use the `loader` functionality built into TanStack Router to load the data for a route before it's rendered.
-
-For example:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/people')({
-  loader: async () => {
-    const response = await fetch('https://swapi.dev/api/people')
-    return response.json()
-  },
-  component: PeopleComponent,
-})
-
-function PeopleComponent() {
-  const data = Route.useLoaderData()
-  return (
-    <ul>
-      {data.results.map((person) => (
-        <li key={person.name}>{person.name}</li>
-      ))}
-    </ul>
-  )
-}
-```
-
-Loaders simplify your data fetching logic dramatically. Check out more information in the [Loader documentation](https://tanstack.com/router/latest/docs/framework/react/guide/data-loading#loader-parameters).
-
-# Demo files
-
-Files prefixed with `demo` can be safely deleted. They are there to provide a starting point for you to play around with the features you've installed.
-
-# Learn More
-
-You can learn more about all of the offerings from TanStack in the [TanStack documentation](https://tanstack.com).
-
-For TanStack Start specific documentation, visit [TanStack Start](https://tanstack.com/start).
+MIT

@@ -1,17 +1,17 @@
 # API Endpoints
 
-**OpenAPI:** especificación [public/openapi.json](../public/openapi.json) (expuesta en `/openapi.json` con `npm run dev`). **Metadatos:** `GET /api/docs` devuelve JSON con la URL del spec. Resumen en el [README](../README.md#api-rest-negocio).
+**OpenAPI:** especificación [public/openapi.json](../public/openapi.json) (expuesta en `/openapi.json` con `npm run dev`). **Swagger UI:** [GET /api/docs](http://localhost:3000/api/docs). Resumen en el [README](../README.md#documentación).
 
 **Contrato:** todas las respuestas de negocio bajo `/api` son JSON (`application/json`); no se usan códigos sin cuerpo (p. ej. 204). La subida `POST /api/upload/imagen` acepta `multipart/form-data` pero responde JSON.
 
-Base URL: `http://localhost:3000` (Vite por defecto; ajusta si usas otro puerto)
+Base URL: `http://localhost:3000`
 
 ---
 
 ## Auth — Better Auth
 
 Better Auth expone sus rutas automáticamente en `/api/auth/`*.
-El frontend usa el cliente oficial `better-auth/client`; **no llames estos endpoints manualmente**.
+El frontend usa el cliente oficial `better-auth/client`; **Estos endpoints no deben llamarse manualmente**
 
 ### POST `/api/auth/sign-in/email`
 
