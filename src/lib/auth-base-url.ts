@@ -19,3 +19,11 @@ function normalizeBaseUrl(raw: string): string {
   }
   return url
 }
+
+/** Base URL del cliente Better Auth: en el navegador usa el origen actual (no localhost del build). */
+export function getAuthClientBaseUrl(): string {
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin
+  }
+  return getAuthBaseUrl()
+}
