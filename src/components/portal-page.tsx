@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, getRouteApi, useNavigate } from '@tanstack/react-router'
 import {
   BarChart3,
+  Building2,
   Home,
   LayoutDashboard,
   Loader2,
@@ -10,9 +11,14 @@ import {
   Pencil,
   ShoppingCart,
   Trash2,
+  UserCog,
   Users,
 } from 'lucide-react'
 
+import { StaffProveedoresPanel } from '#/components/staff-proveedores-panel'
+import { StaffReportsPanel, type ReportSub } from '#/components/staff-reports-panel'
+import { StaffTeamPanel } from '#/components/staff-team-panel'
+import { useRequireRoles } from '#/hooks/use-role-access'
 import { useIcestock } from '#/context/icestock-context'
 import {
   useCategoriasQuery,
@@ -20,7 +26,7 @@ import {
   useProductosQuery,
   useVentasDelDiaQuery,
 } from '#/hooks/use-icestock-api'
-import { portalModalReturnSearch } from '#/lib/portal-search'
+import { portalModalReturnSearch, type PortalTab } from '#/lib/portal-search'
 import { PosSaleShell } from '#/components/pos-sale-view'
 import {
   ProductInactiveBadge,
@@ -30,13 +36,13 @@ import { SiteLogo } from '#/components/site-logo'
 
 const portalRouteApi = getRouteApi('/portal')
 
-type PortalTab = 'inicio' | 'ventas' | 'productos' | 'clientes' | 'reportes'
-
 export function PortalPage() {
   const navigate = useNavigate()
   const portalSearch = portalRouteApi.useSearch()
   const tab: PortalTab = portalSearch.tab ?? 'inicio'
-  const { session, sessionPending, signOut } = useIcestock()
+  const reportSub: ReportSub = portalSearch.reportSub ?? 'hoy'
+  const { signOut } = useIcestock()
+  const { session, ready } = useRequireRoles(['admin'], { loginPath: '/portal' })
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [categoriaId, setCategoriaId] = useState<string | null>(null)
@@ -46,27 +52,19 @@ export function PortalPage() {
     return () => clearTimeout(t)
   }, [search])
 
-  useEffect(() => {
-    if (sessionPending) return
-    if (!session) {
-      void navigate({ to: '/login/empleado', search: { redirect: '/portal' } })
-      return
-    }
-    if (session.user.rol !== 'admin') {
-      void navigate({ to: session.user.rol === 'cajero' ? '/empleado' : '/tienda', replace: true })
-      return
-    }
-  }, [session, sessionPending, navigate])
+  const enabled = ready
+  const reporteQ = useVentasDelDiaQuery(enabled)
+  const productosStaffQ = useProductosQuery('', null, enabled, true)
+  const categoriasQ = useCategoriasQuery(enabled)
+  const productosQ = useProductosQuery(debouncedSearch, categoriaId, enabled && tab === 'ventas')
+  const clientesVentasQ = useClientesQuery(enabled && tab === 'ventas')
+  const clientesListQ = useClientesQuery(enabled && tab === 'clientes')
 
-  const isAdmin = session?.user?.rol === 'admin'
-  const reporteQ = useVentasDelDiaQuery(!!isAdmin)
-  const productosStaffQ = useProductosQuery('', null, !!isAdmin, true)
-  const categoriasQ = useCategoriasQuery(!!isAdmin)
-  const productosQ = useProductosQuery(debouncedSearch, categoriaId, !!isAdmin)
-  const clientesVentasQ = useClientesQuery(!!isAdmin && tab === 'ventas')
-  const clientesListQ = useClientesQuery(!!isAdmin && tab === 'clientes')
+  const goReportSub = (sub: ReportSub) => {
+    void navigate({ to: '/portal', search: { tab: 'reportes', reportSub: sub }, replace: true })
+  }
 
-  if (sessionPending || !session || !isAdmin) {
+  if (!ready || !session) {
     return (
       <div className="grid min-h-screen place-items-center bg-[#faf7f2] text-slate-800">
         <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-6 py-4 shadow-sm">
@@ -113,7 +111,9 @@ export function PortalPage() {
           {navBtn('ventas', 'Ventas / POS', ShoppingCart)}
           {navBtn('productos', 'Productos', Package)}
           {navBtn('clientes', 'Clientes', Users)}
+          {navBtn('proveedores', 'Proveedores', Building2)}
           {navBtn('reportes', 'Reportes', BarChart3)}
+          {navBtn('personal', 'Personal', UserCog)}
         </nav>
 
         <button
@@ -330,13 +330,15 @@ export function PortalPage() {
             </div>
           )}
 
-          {tab === 'reportes' && (
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-white/60 p-10 text-center">
-              <BarChart3 className="mx-auto mb-3 h-10 w-10 text-teal-800/40" />
-              <h2 className="font-[family-name:var(--font-heading)] text-lg font-bold text-teal-900">Reportes</h2>
-              <p className="mt-2 text-sm text-slate-600">Consulta indicadores y exporta datos cuando lo necesites.</p>
-            </div>
+          {tab === 'proveedores' && (
+            <StaffProveedoresPanel session={session.user} enabled={enabled} variant="light" />
           )}
+
+          {tab === 'reportes' && (
+            <StaffReportsPanel enabled={enabled} reportSub={reportSub} onReportSub={goReportSub} variant="light" />
+          )}
+
+          {tab === 'personal' && <StaffTeamPanel session={session.user} enabled={enabled} variant="light" />}
         </div>
       </div>
 

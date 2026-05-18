@@ -10,15 +10,20 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as CajaRouteImport } from './routes/caja'
+import { Route as SuperadminRouteRouteImport } from './routes/superadmin/route'
 import { Route as PortalRouteRouteImport } from './routes/portal/route'
 import { Route as LoginRouteRouteImport } from './routes/login/route'
 import { Route as EmpleadoRouteRouteImport } from './routes/empleado/route'
+import { Route as AnalistaRouteRouteImport } from './routes/analista/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TiendaIndexRouteImport } from './routes/tienda/index'
+import { Route as SuperadminIndexRouteImport } from './routes/superadmin/index'
+import { Route as SetupIndexRouteImport } from './routes/setup/index'
 import { Route as PortalIndexRouteImport } from './routes/portal/index'
 import { Route as LoginIndexRouteImport } from './routes/login/index'
 import { Route as EmpleadoIndexRouteImport } from './routes/empleado/index'
 import { Route as ApiIndexRouteImport } from './routes/api/index'
+import { Route as AnalistaIndexRouteImport } from './routes/analista/index'
 import { Route as TiendaComprasRouteImport } from './routes/tienda/compras'
 import { Route as LoginEmpleadoRouteImport } from './routes/login/empleado'
 import { Route as LoginClienteRouteImport } from './routes/login/cliente'
@@ -31,6 +36,8 @@ import { Route as ApiClientesRouteImport } from './routes/api/clientes'
 import { Route as ApiCategoriasRouteImport } from './routes/api/categorias'
 import { Route as ApiVentasIdRouteImport } from './routes/api/ventas/$id'
 import { Route as ApiUploadImagenRouteImport } from './routes/api/upload/imagen'
+import { Route as ApiSetupStatusRouteImport } from './routes/api/setup/status'
+import { Route as ApiSetupBootstrapRouteImport } from './routes/api/setup/bootstrap'
 import { Route as ApiReportesVentasPorCategoriaRouteImport } from './routes/api/reportes/ventas-por-categoria'
 import { Route as ApiReportesVentasDelDiaRouteImport } from './routes/api/reportes/ventas-del-dia'
 import { Route as ApiReportesStockDisponibleRouteImport } from './routes/api/reportes/stock-disponible'
@@ -43,6 +50,9 @@ import { Route as ApiClientesMeRouteImport } from './routes/api/clientes/me'
 import { Route as ApiClientesIdRouteImport } from './routes/api/clientes/$id'
 import { Route as ApiCategoriasIdRouteImport } from './routes/api/categorias/$id'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as SuperadminProductosEditarProductIdRouteImport } from './routes/superadmin/productos/editar/$productId'
+import { Route as SuperadminProductosDesactivarProductIdRouteImport } from './routes/superadmin/productos/desactivar/$productId'
+import { Route as SuperadminClientesEditarClienteIdRouteImport } from './routes/superadmin/clientes/editar/$clienteId'
 import { Route as PortalProductosEditarProductIdRouteImport } from './routes/portal/productos/editar/$productId'
 import { Route as PortalProductosDesactivarProductIdRouteImport } from './routes/portal/productos/desactivar/$productId'
 import { Route as PortalClientesEditarClienteIdRouteImport } from './routes/portal/clientes/editar/$clienteId'
@@ -54,6 +64,11 @@ import { Route as ApiClientesMeVentasRouteImport } from './routes/api/clientes/m
 const CajaRoute = CajaRouteImport.update({
   id: '/caja',
   path: '/caja',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SuperadminRouteRoute = SuperadminRouteRouteImport.update({
+  id: '/superadmin',
+  path: '/superadmin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PortalRouteRoute = PortalRouteRouteImport.update({
@@ -71,6 +86,11 @@ const EmpleadoRouteRoute = EmpleadoRouteRouteImport.update({
   path: '/empleado',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AnalistaRouteRoute = AnalistaRouteRouteImport.update({
+  id: '/analista',
+  path: '/analista',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -79,6 +99,16 @@ const IndexRoute = IndexRouteImport.update({
 const TiendaIndexRoute = TiendaIndexRouteImport.update({
   id: '/tienda/',
   path: '/tienda/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SuperadminIndexRoute = SuperadminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SuperadminRouteRoute,
+} as any)
+const SetupIndexRoute = SetupIndexRouteImport.update({
+  id: '/setup/',
+  path: '/setup/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PortalIndexRoute = PortalIndexRouteImport.update({
@@ -100,6 +130,11 @@ const ApiIndexRoute = ApiIndexRouteImport.update({
   id: '/api/',
   path: '/api/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AnalistaIndexRoute = AnalistaIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AnalistaRouteRoute,
 } as any)
 const TiendaComprasRoute = TiendaComprasRouteImport.update({
   id: '/tienda/compras',
@@ -159,6 +194,16 @@ const ApiVentasIdRoute = ApiVentasIdRouteImport.update({
 const ApiUploadImagenRoute = ApiUploadImagenRouteImport.update({
   id: '/api/upload/imagen',
   path: '/api/upload/imagen',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSetupStatusRoute = ApiSetupStatusRouteImport.update({
+  id: '/api/setup/status',
+  path: '/api/setup/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSetupBootstrapRoute = ApiSetupBootstrapRouteImport.update({
+  id: '/api/setup/bootstrap',
+  path: '/api/setup/bootstrap',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiReportesVentasPorCategoriaRoute =
@@ -225,6 +270,24 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SuperadminProductosEditarProductIdRoute =
+  SuperadminProductosEditarProductIdRouteImport.update({
+    id: '/productos/editar/$productId',
+    path: '/productos/editar/$productId',
+    getParentRoute: () => SuperadminRouteRoute,
+  } as any)
+const SuperadminProductosDesactivarProductIdRoute =
+  SuperadminProductosDesactivarProductIdRouteImport.update({
+    id: '/productos/desactivar/$productId',
+    path: '/productos/desactivar/$productId',
+    getParentRoute: () => SuperadminRouteRoute,
+  } as any)
+const SuperadminClientesEditarClienteIdRoute =
+  SuperadminClientesEditarClienteIdRouteImport.update({
+    id: '/clientes/editar/$clienteId',
+    path: '/clientes/editar/$clienteId',
+    getParentRoute: () => SuperadminRouteRoute,
+  } as any)
 const PortalProductosEditarProductIdRoute =
   PortalProductosEditarProductIdRouteImport.update({
     id: '/productos/editar/$productId',
@@ -269,9 +332,11 @@ const ApiClientesMeVentasRoute = ApiClientesMeVentasRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/analista': typeof AnalistaRouteRouteWithChildren
   '/empleado': typeof EmpleadoRouteRouteWithChildren
   '/login': typeof LoginRouteRouteWithChildren
   '/portal': typeof PortalRouteRouteWithChildren
+  '/superadmin': typeof SuperadminRouteRouteWithChildren
   '/caja': typeof CajaRoute
   '/api/categorias': typeof ApiCategoriasRouteWithChildren
   '/api/clientes': typeof ApiClientesRouteWithChildren
@@ -283,10 +348,13 @@ export interface FileRoutesByFullPath {
   '/login/cliente': typeof LoginClienteRoute
   '/login/empleado': typeof LoginEmpleadoRoute
   '/tienda/compras': typeof TiendaComprasRoute
+  '/analista/': typeof AnalistaIndexRoute
   '/api/': typeof ApiIndexRoute
   '/empleado/': typeof EmpleadoIndexRoute
   '/login/': typeof LoginIndexRoute
   '/portal/': typeof PortalIndexRoute
+  '/setup/': typeof SetupIndexRoute
+  '/superadmin/': typeof SuperadminIndexRoute
   '/tienda/': typeof TiendaIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/categorias/$id': typeof ApiCategoriasIdRoute
@@ -300,6 +368,8 @@ export interface FileRoutesByFullPath {
   '/api/reportes/stock-disponible': typeof ApiReportesStockDisponibleRoute
   '/api/reportes/ventas-del-dia': typeof ApiReportesVentasDelDiaRoute
   '/api/reportes/ventas-por-categoria': typeof ApiReportesVentasPorCategoriaRoute
+  '/api/setup/bootstrap': typeof ApiSetupBootstrapRoute
+  '/api/setup/status': typeof ApiSetupStatusRoute
   '/api/upload/imagen': typeof ApiUploadImagenRoute
   '/api/ventas/$id': typeof ApiVentasIdRoute
   '/api/clientes/me/ventas': typeof ApiClientesMeVentasRoute
@@ -309,6 +379,9 @@ export interface FileRoutesByFullPath {
   '/portal/clientes/editar/$clienteId': typeof PortalClientesEditarClienteIdRoute
   '/portal/productos/desactivar/$productId': typeof PortalProductosDesactivarProductIdRoute
   '/portal/productos/editar/$productId': typeof PortalProductosEditarProductIdRoute
+  '/superadmin/clientes/editar/$clienteId': typeof SuperadminClientesEditarClienteIdRoute
+  '/superadmin/productos/desactivar/$productId': typeof SuperadminProductosDesactivarProductIdRoute
+  '/superadmin/productos/editar/$productId': typeof SuperadminProductosEditarProductIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -323,10 +396,13 @@ export interface FileRoutesByTo {
   '/login/cliente': typeof LoginClienteRoute
   '/login/empleado': typeof LoginEmpleadoRoute
   '/tienda/compras': typeof TiendaComprasRoute
+  '/analista': typeof AnalistaIndexRoute
   '/api': typeof ApiIndexRoute
   '/empleado': typeof EmpleadoIndexRoute
   '/login': typeof LoginIndexRoute
   '/portal': typeof PortalIndexRoute
+  '/setup': typeof SetupIndexRoute
+  '/superadmin': typeof SuperadminIndexRoute
   '/tienda': typeof TiendaIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/categorias/$id': typeof ApiCategoriasIdRoute
@@ -340,6 +416,8 @@ export interface FileRoutesByTo {
   '/api/reportes/stock-disponible': typeof ApiReportesStockDisponibleRoute
   '/api/reportes/ventas-del-dia': typeof ApiReportesVentasDelDiaRoute
   '/api/reportes/ventas-por-categoria': typeof ApiReportesVentasPorCategoriaRoute
+  '/api/setup/bootstrap': typeof ApiSetupBootstrapRoute
+  '/api/setup/status': typeof ApiSetupStatusRoute
   '/api/upload/imagen': typeof ApiUploadImagenRoute
   '/api/ventas/$id': typeof ApiVentasIdRoute
   '/api/clientes/me/ventas': typeof ApiClientesMeVentasRoute
@@ -349,13 +427,18 @@ export interface FileRoutesByTo {
   '/portal/clientes/editar/$clienteId': typeof PortalClientesEditarClienteIdRoute
   '/portal/productos/desactivar/$productId': typeof PortalProductosDesactivarProductIdRoute
   '/portal/productos/editar/$productId': typeof PortalProductosEditarProductIdRoute
+  '/superadmin/clientes/editar/$clienteId': typeof SuperadminClientesEditarClienteIdRoute
+  '/superadmin/productos/desactivar/$productId': typeof SuperadminProductosDesactivarProductIdRoute
+  '/superadmin/productos/editar/$productId': typeof SuperadminProductosEditarProductIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/analista': typeof AnalistaRouteRouteWithChildren
   '/empleado': typeof EmpleadoRouteRouteWithChildren
   '/login': typeof LoginRouteRouteWithChildren
   '/portal': typeof PortalRouteRouteWithChildren
+  '/superadmin': typeof SuperadminRouteRouteWithChildren
   '/caja': typeof CajaRoute
   '/api/categorias': typeof ApiCategoriasRouteWithChildren
   '/api/clientes': typeof ApiClientesRouteWithChildren
@@ -367,10 +450,13 @@ export interface FileRoutesById {
   '/login/cliente': typeof LoginClienteRoute
   '/login/empleado': typeof LoginEmpleadoRoute
   '/tienda/compras': typeof TiendaComprasRoute
+  '/analista/': typeof AnalistaIndexRoute
   '/api/': typeof ApiIndexRoute
   '/empleado/': typeof EmpleadoIndexRoute
   '/login/': typeof LoginIndexRoute
   '/portal/': typeof PortalIndexRoute
+  '/setup/': typeof SetupIndexRoute
+  '/superadmin/': typeof SuperadminIndexRoute
   '/tienda/': typeof TiendaIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/categorias/$id': typeof ApiCategoriasIdRoute
@@ -384,6 +470,8 @@ export interface FileRoutesById {
   '/api/reportes/stock-disponible': typeof ApiReportesStockDisponibleRoute
   '/api/reportes/ventas-del-dia': typeof ApiReportesVentasDelDiaRoute
   '/api/reportes/ventas-por-categoria': typeof ApiReportesVentasPorCategoriaRoute
+  '/api/setup/bootstrap': typeof ApiSetupBootstrapRoute
+  '/api/setup/status': typeof ApiSetupStatusRoute
   '/api/upload/imagen': typeof ApiUploadImagenRoute
   '/api/ventas/$id': typeof ApiVentasIdRoute
   '/api/clientes/me/ventas': typeof ApiClientesMeVentasRoute
@@ -393,14 +481,19 @@ export interface FileRoutesById {
   '/portal/clientes/editar/$clienteId': typeof PortalClientesEditarClienteIdRoute
   '/portal/productos/desactivar/$productId': typeof PortalProductosDesactivarProductIdRoute
   '/portal/productos/editar/$productId': typeof PortalProductosEditarProductIdRoute
+  '/superadmin/clientes/editar/$clienteId': typeof SuperadminClientesEditarClienteIdRoute
+  '/superadmin/productos/desactivar/$productId': typeof SuperadminProductosDesactivarProductIdRoute
+  '/superadmin/productos/editar/$productId': typeof SuperadminProductosEditarProductIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/analista'
     | '/empleado'
     | '/login'
     | '/portal'
+    | '/superadmin'
     | '/caja'
     | '/api/categorias'
     | '/api/clientes'
@@ -412,10 +505,13 @@ export interface FileRouteTypes {
     | '/login/cliente'
     | '/login/empleado'
     | '/tienda/compras'
+    | '/analista/'
     | '/api/'
     | '/empleado/'
     | '/login/'
     | '/portal/'
+    | '/setup/'
+    | '/superadmin/'
     | '/tienda/'
     | '/api/auth/$'
     | '/api/categorias/$id'
@@ -429,6 +525,8 @@ export interface FileRouteTypes {
     | '/api/reportes/stock-disponible'
     | '/api/reportes/ventas-del-dia'
     | '/api/reportes/ventas-por-categoria'
+    | '/api/setup/bootstrap'
+    | '/api/setup/status'
     | '/api/upload/imagen'
     | '/api/ventas/$id'
     | '/api/clientes/me/ventas'
@@ -438,6 +536,9 @@ export interface FileRouteTypes {
     | '/portal/clientes/editar/$clienteId'
     | '/portal/productos/desactivar/$productId'
     | '/portal/productos/editar/$productId'
+    | '/superadmin/clientes/editar/$clienteId'
+    | '/superadmin/productos/desactivar/$productId'
+    | '/superadmin/productos/editar/$productId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -452,10 +553,13 @@ export interface FileRouteTypes {
     | '/login/cliente'
     | '/login/empleado'
     | '/tienda/compras'
+    | '/analista'
     | '/api'
     | '/empleado'
     | '/login'
     | '/portal'
+    | '/setup'
+    | '/superadmin'
     | '/tienda'
     | '/api/auth/$'
     | '/api/categorias/$id'
@@ -469,6 +573,8 @@ export interface FileRouteTypes {
     | '/api/reportes/stock-disponible'
     | '/api/reportes/ventas-del-dia'
     | '/api/reportes/ventas-por-categoria'
+    | '/api/setup/bootstrap'
+    | '/api/setup/status'
     | '/api/upload/imagen'
     | '/api/ventas/$id'
     | '/api/clientes/me/ventas'
@@ -478,12 +584,17 @@ export interface FileRouteTypes {
     | '/portal/clientes/editar/$clienteId'
     | '/portal/productos/desactivar/$productId'
     | '/portal/productos/editar/$productId'
+    | '/superadmin/clientes/editar/$clienteId'
+    | '/superadmin/productos/desactivar/$productId'
+    | '/superadmin/productos/editar/$productId'
   id:
     | '__root__'
     | '/'
+    | '/analista'
     | '/empleado'
     | '/login'
     | '/portal'
+    | '/superadmin'
     | '/caja'
     | '/api/categorias'
     | '/api/clientes'
@@ -495,10 +606,13 @@ export interface FileRouteTypes {
     | '/login/cliente'
     | '/login/empleado'
     | '/tienda/compras'
+    | '/analista/'
     | '/api/'
     | '/empleado/'
     | '/login/'
     | '/portal/'
+    | '/setup/'
+    | '/superadmin/'
     | '/tienda/'
     | '/api/auth/$'
     | '/api/categorias/$id'
@@ -512,6 +626,8 @@ export interface FileRouteTypes {
     | '/api/reportes/stock-disponible'
     | '/api/reportes/ventas-del-dia'
     | '/api/reportes/ventas-por-categoria'
+    | '/api/setup/bootstrap'
+    | '/api/setup/status'
     | '/api/upload/imagen'
     | '/api/ventas/$id'
     | '/api/clientes/me/ventas'
@@ -521,13 +637,18 @@ export interface FileRouteTypes {
     | '/portal/clientes/editar/$clienteId'
     | '/portal/productos/desactivar/$productId'
     | '/portal/productos/editar/$productId'
+    | '/superadmin/clientes/editar/$clienteId'
+    | '/superadmin/productos/desactivar/$productId'
+    | '/superadmin/productos/editar/$productId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AnalistaRouteRoute: typeof AnalistaRouteRouteWithChildren
   EmpleadoRouteRoute: typeof EmpleadoRouteRouteWithChildren
   LoginRouteRoute: typeof LoginRouteRouteWithChildren
   PortalRouteRoute: typeof PortalRouteRouteWithChildren
+  SuperadminRouteRoute: typeof SuperadminRouteRouteWithChildren
   CajaRoute: typeof CajaRoute
   ApiCategoriasRoute: typeof ApiCategoriasRouteWithChildren
   ApiClientesRoute: typeof ApiClientesRouteWithChildren
@@ -538,6 +659,7 @@ export interface RootRouteChildren {
   ApiVentasRoute: typeof ApiVentasRouteWithChildren
   TiendaComprasRoute: typeof TiendaComprasRoute
   ApiIndexRoute: typeof ApiIndexRoute
+  SetupIndexRoute: typeof SetupIndexRoute
   TiendaIndexRoute: typeof TiendaIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiReportesClientesFrecuentesRoute: typeof ApiReportesClientesFrecuentesRoute
@@ -545,6 +667,8 @@ export interface RootRouteChildren {
   ApiReportesStockDisponibleRoute: typeof ApiReportesStockDisponibleRoute
   ApiReportesVentasDelDiaRoute: typeof ApiReportesVentasDelDiaRoute
   ApiReportesVentasPorCategoriaRoute: typeof ApiReportesVentasPorCategoriaRoute
+  ApiSetupBootstrapRoute: typeof ApiSetupBootstrapRoute
+  ApiSetupStatusRoute: typeof ApiSetupStatusRoute
   ApiUploadImagenRoute: typeof ApiUploadImagenRoute
 }
 
@@ -555,6 +679,13 @@ declare module '@tanstack/react-router' {
       path: '/caja'
       fullPath: '/caja'
       preLoaderRoute: typeof CajaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/superadmin': {
+      id: '/superadmin'
+      path: '/superadmin'
+      fullPath: '/superadmin'
+      preLoaderRoute: typeof SuperadminRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/portal': {
@@ -578,6 +709,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EmpleadoRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/analista': {
+      id: '/analista'
+      path: '/analista'
+      fullPath: '/analista'
+      preLoaderRoute: typeof AnalistaRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -590,6 +728,20 @@ declare module '@tanstack/react-router' {
       path: '/tienda'
       fullPath: '/tienda/'
       preLoaderRoute: typeof TiendaIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/superadmin/': {
+      id: '/superadmin/'
+      path: '/'
+      fullPath: '/superadmin/'
+      preLoaderRoute: typeof SuperadminIndexRouteImport
+      parentRoute: typeof SuperadminRouteRoute
+    }
+    '/setup/': {
+      id: '/setup/'
+      path: '/setup'
+      fullPath: '/setup/'
+      preLoaderRoute: typeof SetupIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/portal/': {
@@ -619,6 +771,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/'
       preLoaderRoute: typeof ApiIndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/analista/': {
+      id: '/analista/'
+      path: '/'
+      fullPath: '/analista/'
+      preLoaderRoute: typeof AnalistaIndexRouteImport
+      parentRoute: typeof AnalistaRouteRoute
     }
     '/tienda/compras': {
       id: '/tienda/compras'
@@ -702,6 +861,20 @@ declare module '@tanstack/react-router' {
       path: '/api/upload/imagen'
       fullPath: '/api/upload/imagen'
       preLoaderRoute: typeof ApiUploadImagenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/setup/status': {
+      id: '/api/setup/status'
+      path: '/api/setup/status'
+      fullPath: '/api/setup/status'
+      preLoaderRoute: typeof ApiSetupStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/setup/bootstrap': {
+      id: '/api/setup/bootstrap'
+      path: '/api/setup/bootstrap'
+      fullPath: '/api/setup/bootstrap'
+      preLoaderRoute: typeof ApiSetupBootstrapRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/reportes/ventas-por-categoria': {
@@ -788,6 +961,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/superadmin/productos/editar/$productId': {
+      id: '/superadmin/productos/editar/$productId'
+      path: '/productos/editar/$productId'
+      fullPath: '/superadmin/productos/editar/$productId'
+      preLoaderRoute: typeof SuperadminProductosEditarProductIdRouteImport
+      parentRoute: typeof SuperadminRouteRoute
+    }
+    '/superadmin/productos/desactivar/$productId': {
+      id: '/superadmin/productos/desactivar/$productId'
+      path: '/productos/desactivar/$productId'
+      fullPath: '/superadmin/productos/desactivar/$productId'
+      preLoaderRoute: typeof SuperadminProductosDesactivarProductIdRouteImport
+      parentRoute: typeof SuperadminRouteRoute
+    }
+    '/superadmin/clientes/editar/$clienteId': {
+      id: '/superadmin/clientes/editar/$clienteId'
+      path: '/clientes/editar/$clienteId'
+      fullPath: '/superadmin/clientes/editar/$clienteId'
+      preLoaderRoute: typeof SuperadminClientesEditarClienteIdRouteImport
+      parentRoute: typeof SuperadminRouteRoute
+    }
     '/portal/productos/editar/$productId': {
       id: '/portal/productos/editar/$productId'
       path: '/productos/editar/$productId'
@@ -839,6 +1033,18 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface AnalistaRouteRouteChildren {
+  AnalistaIndexRoute: typeof AnalistaIndexRoute
+}
+
+const AnalistaRouteRouteChildren: AnalistaRouteRouteChildren = {
+  AnalistaIndexRoute: AnalistaIndexRoute,
+}
+
+const AnalistaRouteRouteWithChildren = AnalistaRouteRoute._addFileChildren(
+  AnalistaRouteRouteChildren,
+)
 
 interface EmpleadoRouteRouteChildren {
   EmpleadoIndexRoute: typeof EmpleadoIndexRoute
@@ -892,6 +1098,27 @@ const PortalRouteRouteChildren: PortalRouteRouteChildren = {
 
 const PortalRouteRouteWithChildren = PortalRouteRoute._addFileChildren(
   PortalRouteRouteChildren,
+)
+
+interface SuperadminRouteRouteChildren {
+  SuperadminIndexRoute: typeof SuperadminIndexRoute
+  SuperadminClientesEditarClienteIdRoute: typeof SuperadminClientesEditarClienteIdRoute
+  SuperadminProductosDesactivarProductIdRoute: typeof SuperadminProductosDesactivarProductIdRoute
+  SuperadminProductosEditarProductIdRoute: typeof SuperadminProductosEditarProductIdRoute
+}
+
+const SuperadminRouteRouteChildren: SuperadminRouteRouteChildren = {
+  SuperadminIndexRoute: SuperadminIndexRoute,
+  SuperadminClientesEditarClienteIdRoute:
+    SuperadminClientesEditarClienteIdRoute,
+  SuperadminProductosDesactivarProductIdRoute:
+    SuperadminProductosDesactivarProductIdRoute,
+  SuperadminProductosEditarProductIdRoute:
+    SuperadminProductosEditarProductIdRoute,
+}
+
+const SuperadminRouteRouteWithChildren = SuperadminRouteRoute._addFileChildren(
+  SuperadminRouteRouteChildren,
 )
 
 interface ApiCategoriasRouteChildren {
@@ -982,9 +1209,11 @@ const ApiVentasRouteWithChildren = ApiVentasRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AnalistaRouteRoute: AnalistaRouteRouteWithChildren,
   EmpleadoRouteRoute: EmpleadoRouteRouteWithChildren,
   LoginRouteRoute: LoginRouteRouteWithChildren,
   PortalRouteRoute: PortalRouteRouteWithChildren,
+  SuperadminRouteRoute: SuperadminRouteRouteWithChildren,
   CajaRoute: CajaRoute,
   ApiCategoriasRoute: ApiCategoriasRouteWithChildren,
   ApiClientesRoute: ApiClientesRouteWithChildren,
@@ -995,6 +1224,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiVentasRoute: ApiVentasRouteWithChildren,
   TiendaComprasRoute: TiendaComprasRoute,
   ApiIndexRoute: ApiIndexRoute,
+  SetupIndexRoute: SetupIndexRoute,
   TiendaIndexRoute: TiendaIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiReportesClientesFrecuentesRoute: ApiReportesClientesFrecuentesRoute,
@@ -1002,6 +1232,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiReportesStockDisponibleRoute: ApiReportesStockDisponibleRoute,
   ApiReportesVentasDelDiaRoute: ApiReportesVentasDelDiaRoute,
   ApiReportesVentasPorCategoriaRoute: ApiReportesVentasPorCategoriaRoute,
+  ApiSetupBootstrapRoute: ApiSetupBootstrapRoute,
+  ApiSetupStatusRoute: ApiSetupStatusRoute,
   ApiUploadImagenRoute: ApiUploadImagenRoute,
 }
 export const routeTree = rootRouteImport

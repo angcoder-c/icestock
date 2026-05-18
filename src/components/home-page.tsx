@@ -5,7 +5,8 @@ import { Home, Loader2, Search } from 'lucide-react'
 import { ProductPosCard } from '#/components/pos-sale-view'
 import { SiteLogo } from '#/components/site-logo'
 import { useIcestock } from '#/context/icestock-context'
-import { useCategoriasQuery, useProductosQuery } from '#/hooks/use-icestock-api'
+import { homePathForRol } from '#/lib/auth/role-routes'
+import { useCategoriasQuery, useProductosQuery, useSetupStatusQuery } from '#/hooks/use-icestock-api'
 
 export function HomePage() {
   const navigate = useNavigate()
@@ -21,15 +22,10 @@ export function HomePage() {
 
   useEffect(() => {
     if (sessionPending || !session) return
-    if (session.user.rol === 'admin') {
-      void navigate({ to: '/portal', replace: true })
-    } else if (session.user.rol === 'cajero') {
-      void navigate({ to: '/empleado', replace: true })
-    } else {
-      void navigate({ to: '/tienda', replace: true })
-    }
+    void navigate({ to: homePathForRol(session.user.rol), replace: true })
   }, [session, sessionPending, navigate])
 
+  const setupQ = useSetupStatusQuery()
   const showCatalog = !sessionPending && !session
   const categoriasQ = useCategoriasQuery(showCatalog)
   const productosQ = useProductosQuery(debouncedSearch, categoriaId, showCatalog, false)
@@ -91,6 +87,14 @@ export function HomePage() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 pb-24 pt-6">
+        {setupQ.data?.needsBootstrap ? (
+          <div className="mb-6 rounded-2xl border border-violet-400/35 bg-violet-500/10 px-4 py-3 text-sm text-white/85">
+            Primera vez en IceStock:{' '}
+            <Link to="/setup" className="font-semibold text-violet-300 hover:text-white">
+              crear superadministrador
+            </Link>
+          </div>
+        ) : null}
         <div className="relative mb-6">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
           <input
@@ -155,11 +159,7 @@ export function HomePage() {
           <p>
             ¿Personal de la tienda?{' '}
             <Link to="/login/empleado" search={{ redirect: '/empleado' }} className="text-[var(--accent)] underline-offset-2 hover:underline">
-              Acceso caja
-            </Link>
-            {' · '}
-            <Link to="/login/empleado" search={{ redirect: '/portal' }} className="text-[var(--secondary)] underline-offset-2 hover:underline">
-              Administración
+              Personal
             </Link>
           </p>
         </footer>

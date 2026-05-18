@@ -1,7 +1,6 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react'
 import { Link, getRouteApi, useNavigate } from '@tanstack/react-router'
 import {
-  BarChart3,
   LayoutDashboard,
   Loader2,
   LogOut,
@@ -9,7 +8,6 @@ import {
   Pencil,
   Search,
   ShoppingCart,
-  Trash2,
   Users,
   X,
 } from 'lucide-react'
@@ -21,22 +19,15 @@ import {
 } from '#/components/product-deactivate-modal'
 import { SiteLogo } from '#/components/site-logo'
 import { useIcestock } from '#/context/icestock-context'
-import { type EmpleadoReportSub, type EmpleadoTab, empleadoModalReturnSearch } from '#/lib/empleado-search'
+import { type EmpleadoTab } from '#/lib/empleado-search'
+import { useRequireRoles } from '#/hooks/use-role-access'
 import {
   useCategoriasQuery,
-  useClientesFrecuentesQuery,
   useClientesQuery,
   useCreateClienteMutation,
-  useCreateProductoMutation,
-  useProductosMasVendidosQuery,
   useProductosQuery,
   useProductosStockBajoQuery,
-  useProveedoresQuery,
-  useStockDisponibleQuery,
-  useUploadProductImageMutation,
-  useVentasDelDiaQuery,
   useVentasListQuery,
-  useVentasPorCategoriaQuery,
 } from '#/hooks/use-icestock-api'
 
 const teal = 'text-[#004d4f]'
@@ -51,64 +42,25 @@ function statusPill(estado: string) {
   return 'bg-white/10 text-[var(--text)]/80'
 }
 
-function exportCsv(filename: string, rows: Record<string, unknown>[]) {
-  if (!rows.length) return
-  const keys = Object.keys(rows[0])
-  const esc = (v: unknown) => {
-    const s = v == null ? '' : String(v)
-    if (s.includes(',') || s.includes('"')) return `"${s.replace(/"/g, '""')}"`
-    return s
-  }
-  const lines = [keys.join(','), ...rows.map((r) => keys.map((k) => esc(r[k])).join(','))]
-  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' })
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob)
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(a.href)
-}
-
 const empleadoRouteApi = getRouteApi('/empleado')
 
 export function EmpleadoPortalPage() {
   const navigate = useNavigate()
   const search = empleadoRouteApi.useSearch()
   const tab: EmpleadoTab = search.tab ?? 'inicio'
-  const reportSub: EmpleadoReportSub = search.reportSub ?? 'hoy'
 
   const goTab = (t: EmpleadoTab) => {
-    void navigate({
-      to: '/empleado',
-      search: () => (t === 'reportes' ? { tab: t, reportSub: search.reportSub ?? 'hoy' } : { tab: t }),
-      replace: true,
-    })
+    void navigate({ to: '/empleado', search: { tab: t }, replace: true })
   }
 
-  const goReportSub = (k: EmpleadoReportSub) => {
-    void navigate({
-      to: '/empleado',
-      search: { tab: 'reportes', reportSub: k },
-      replace: true,
-    })
-  }
-
-  const { session, sessionPending, signOut } = useIcestock()
+  const { signOut } = useIcestock()
+  const { session, ready } = useRequireRoles(['cajero'], { loginPath: '/empleado' })
   const [headerSearch, setHeaderSearch] = useState('')
   const [posSearch, setPosSearch] = useState('')
   const [posCat, setPosCat] = useState<string | null>(null)
   const [debouncedPos, setDebouncedPos] = useState('')
 
-  const [drawerProducto, setDrawerProducto] = useState(false)
   const [drawerCliente, setDrawerCliente] = useState(false)
-  const [npNombre, setNpNombre] = useState('')
-  const [npDesc, setNpDesc] = useState('')
-  const [npPrecio, setNpPrecio] = useState('')
-  const [npStock, setNpStock] = useState('')
-  const [npCat, setNpCat] = useState<string | ''>('')
-  const [npProv, setNpProv] = useState<string | ''>('')
-  const [npFile, setNpFile] = useState<File | null>(null)
-  const [npErr, setNpErr] = useState<string | null>(null)
-
   const [ncNombre, setNcNombre] = useState('')
   const [ncEmail, setNcEmail] = useState('')
   const [ncTel, setNcTel] = useState('')
@@ -119,42 +71,13 @@ export function EmpleadoPortalPage() {
     return () => clearTimeout(t)
   }, [posSearch])
 
-  useEffect(() => {
-    if (sessionPending) return
-    if (!session) {
-      void navigate({ to: '/login/empleado', search: { redirect: '/empleado' } })
-      return
-    }
-    if (session.user.rol === 'admin') {
-      void navigate({ to: '/portal', replace: true })
-      return
-    }
-    if (session.user.rol === 'cliente') {
-      void navigate({ to: '/tienda', replace: true })
-      return
-    }
-    if (session.user.rol !== 'cajero') {
-      void navigate({ to: '/login', replace: true })
-    }
-  }, [session, sessionPending, navigate])
-
-  const ok = session?.user?.rol === 'cajero'
-  const reporteQ = useVentasDelDiaQuery(ok && tab === 'inicio')
-  const reporteVentasQ = useVentasDelDiaQuery(ok && tab === 'ventas')
-  const productosInvQ = useProductosQuery('', null, ok && tab === 'productos', true)
-  const productosPosQ = useProductosQuery(debouncedPos, posCat, ok && tab === 'ventas', true)
+  const ok = ready
+  const productosInvQ = useProductosQuery('', null, ok && tab === 'productos', false)
+  const productosPosQ = useProductosQuery(debouncedPos, posCat, ok && tab === 'ventas', false)
   const categoriasQ = useCategoriasQuery(ok && (tab === 'ventas' || tab === 'productos'))
   const clientesQ = useClientesQuery(ok && (tab === 'clientes' || tab === 'inicio' || tab === 'ventas'))
   const ventasListQ = useVentasListQuery(ok && tab === 'inicio')
-  const proveedoresQ = useProveedoresQuery(ok && tab === 'productos')
   const stockBajoQ = useProductosStockBajoQuery(ok && tab === 'inicio')
-  const stockTabQ = useStockDisponibleQuery(ok && tab === 'reportes' && reportSub === 'stock')
-  const topQ = useProductosMasVendidosQuery(ok && tab === 'reportes' && reportSub === 'top')
-  const porCatQ = useVentasPorCategoriaQuery(ok && (tab === 'inicio' || (tab === 'reportes' && reportSub === 'insights')))
-  const freqQ = useClientesFrecuentesQuery(ok && tab === 'reportes' && reportSub === 'insights')
-
-  const createProd = useCreateProductoMutation()
-  const uploadMut = useUploadProductImageMutation()
   const createCli = useCreateClienteMutation()
 
   const clientesFiltrados = useMemo(() => {
@@ -176,60 +99,15 @@ export function EmpleadoPortalPage() {
     return rows.filter((p) => p.nombre.toLowerCase().includes(q) || p.categoria.nombre.toLowerCase().includes(q))
   }, [productosInvQ.data, headerSearch, tab])
 
-  const maxCatIngreso = useMemo(() => {
-    const rows = porCatQ.data ?? []
-    return Math.max(1, ...rows.map((r) => parseFloat(String(r.ingresos)) || 0))
-  }, [porCatQ.data])
+  const ventasHoy = useMemo(() => {
+    const today = new Date().toDateString()
+    return (ventasListQ.data ?? []).filter((v) => new Date(v.fecha).toDateString() === today)
+  }, [ventasListQ.data])
 
-  const onNuevoProducto = async (e: FormEvent) => {
-    e.preventDefault()
-    setNpErr(null)
-    const precio = Number(npPrecio)
-    const stock = Number(npStock)
-    if (!npNombre.trim()) {
-      setNpErr('El nombre es obligatorio.')
-      return
-    }
-    if (!Number.isFinite(precio) || precio <= 0) {
-      setNpErr('Precio inválido.')
-      return
-    }
-    if (!Number.isFinite(stock) || stock < 0) {
-      setNpErr('Stock inválido.')
-      return
-    }
-    if (npCat === '' || npProv === '') {
-      setNpErr('Selecciona categoría y proveedor.')
-      return
-    }
-    try {
-      const created = await createProd.mutateAsync({
-        nombre: npNombre.trim(),
-        descripcion: npDesc.trim() || null,
-        precio,
-        stock,
-        id_categoria: npCat,
-        id_proveedor: npProv,
-      })
-      if (npFile) {
-        try {
-          await uploadMut.mutateAsync({ file: npFile, id_producto: created.id })
-        } catch (upErr) {
-          setNpErr(upErr instanceof Error ? upErr.message : 'Producto creado; error al subir imagen.')
-        }
-      }
-      setDrawerProducto(false)
-      setNpNombre('')
-      setNpDesc('')
-      setNpPrecio('')
-      setNpStock('')
-      setNpCat('')
-      setNpProv('')
-      setNpFile(null)
-    } catch (err) {
-      setNpErr(err instanceof Error ? err.message : 'No se pudo crear')
-    }
-  }
+  const ingresosHoy = useMemo(
+    () => ventasHoy.reduce((sum, v) => sum + (parseFloat(String(v.total)) || 0), 0).toFixed(2),
+    [ventasHoy],
+  )
 
   const onNuevoCliente = async (e: FormEvent) => {
     e.preventDefault()
@@ -253,7 +131,7 @@ export function EmpleadoPortalPage() {
     }
   }
 
-  if (sessionPending || !session || !ok) {
+  if (!ready || !session) {
     return (
       <div className="grid min-h-screen place-items-center bg-[var(--bg)] text-[var(--text)]">
         <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[var(--panel)] px-6 py-4 shadow-lg">
@@ -264,7 +142,6 @@ export function EmpleadoPortalPage() {
     )
   }
 
-  const d = reporteQ.data
   const alertas = (stockBajoQ.data ?? []).length
   const clientesTotal = clientesQ.data?.length ?? 0
   const ventasMuestra = (ventasListQ.data ?? []).slice(0, 8)
@@ -300,7 +177,6 @@ export function EmpleadoPortalPage() {
           {navBtn('productos', 'Productos', Package)}
           {navBtn('ventas', 'Ventas', ShoppingCart)}
           {navBtn('clientes', 'Clientes', Users)}
-          {navBtn('reportes', 'Reportes', BarChart3)}
         </nav>
 
         <button
@@ -332,13 +208,7 @@ export function EmpleadoPortalPage() {
                 value={headerSearch}
                 onChange={(e) => setHeaderSearch(e.target.value)}
                 placeholder={
-                  tab === 'clientes'
-                    ? 'Buscar clientes…'
-                    : tab === 'productos'
-                      ? 'Buscar en inventario…'
-                      : tab === 'reportes'
-                        ? 'Buscar en reportes…'
-                        : 'Buscar…'
+                  tab === 'clientes' ? 'Buscar clientes…' : tab === 'productos' ? 'Buscar en inventario…' : 'Buscar…'
                 }
                 className="w-full rounded-full border border-white/10 bg-black/25 py-2.5 pl-10 pr-4 text-sm text-[var(--text)] placeholder:text-white/40 outline-none ring-[var(--accent)]/25 focus:border-[var(--accent)]/40 focus:ring-2"
               />
@@ -367,16 +237,18 @@ export function EmpleadoPortalPage() {
                     <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text)]/55">Ventas hoy</p>
                     <ShoppingCart className="h-5 w-5 text-[#004d4f]" />
                   </div>
-                  <p className="mt-2 font-[family-name:var(--font-heading)] text-3xl font-bold text-[var(--text)]">{d?.total_ventas ?? '—'}</p>
-                  <p className="mt-1 text-xs text-emerald-300">Cabeceras del día</p>
+                  <p className="mt-2 font-[family-name:var(--font-heading)] text-3xl font-bold text-[var(--text)]">{ventasHoy.length}</p>
+                  <p className="mt-1 text-xs text-emerald-300">Ventas registradas hoy</p>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-[var(--panel)] p-5 shadow-lg shadow-black/25">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text)]/55">Ingresos</p>
                     <span className="text-[#004d4f]">Q</span>
                   </div>
-                  <p className="mt-2 font-[family-name:var(--font-heading)] text-3xl font-bold text-[var(--text)]">{d ? `Q${d.ingresos}` : '—'}</p>
-                  <p className="mt-1 text-xs text-emerald-300">Ingresos del día</p>
+                  <p className="mt-2 font-[family-name:var(--font-heading)] text-3xl font-bold text-[var(--text)]">
+                    {ventasListQ.isLoading ? '—' : `Q${ingresosHoy}`}
+                  </p>
+                  <p className="mt-1 text-xs text-emerald-300">Total de tus ventas hoy</p>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-[var(--panel)] p-5 shadow-lg shadow-black/25">
                   <div className="flex items-center justify-between">
@@ -402,42 +274,18 @@ export function EmpleadoPortalPage() {
                     <h2 className="font-[family-name:var(--font-heading)] text-lg font-bold text-[var(--text)]">Ventas por categoría</h2>
                     <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-[var(--text)]/75">Esta semana</span>
                   </div>
-                  {porCatQ.isLoading ? (
-                    <p className="text-sm text-[var(--text)]/55">Cargando…</p>
-                  ) : porCatQ.isError ? (
-                    <p className="text-sm text-red-600">{(porCatQ.error as Error)?.message}</p>
-                  ) : (
-                    <ul className="space-y-4">
-                      {(porCatQ.data ?? []).map((row, i) => {
-                        const pct = Math.round(((parseFloat(String(row.ingresos)) || 0) / maxCatIngreso) * 100)
-                        const colors = ['bg-[#004d4f]', 'bg-[#ff6b6b]', 'bg-[#5ec4be]', 'bg-[#94d7d3]', 'bg-[#b8e0dd]']
-                        return (
-                          <li key={row.categoria}>
-                            <div className="flex justify-between text-sm">
-                              <span className="font-medium text-[var(--text)]/90">{row.categoria}</span>
-                              <span className="font-semibold text-[#004d4f]">Q{row.ingresos}</span>
-                            </div>
-                            <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-white/10">
-                              <div className={`h-full rounded-full ${colors[i % colors.length]}`} style={{ width: `${pct}%` }} />
-                            </div>
-                          </li>
-                        )
-                      })}
-                    </ul>
-                  )}
+                  <p className="text-sm text-[var(--text)]/55">Los reportes por categoría están en el portal de analista.</p>
                 </div>
                 <div className={`rounded-2xl ${tealBg} p-6 text-white shadow-lg`}>
                   <p className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white/90">Destacado</p>
                   <p className="mt-4 font-[family-name:var(--font-heading)] text-xl font-bold">Top categoría</p>
-                  <p className="mt-2 text-sm text-white/85">
-                    {(porCatQ.data ?? [])[0]?.categoria ?? 'Sin datos'} lidera ingresos reportados por categoría.
-                  </p>
+                  <p className="mt-2 text-sm text-white/85">Consulta el catálogo en la pestaña Productos (solo lectura).</p>
                   <button
                     type="button"
                     onClick={() => goTab('productos')}
                     className="mt-6 w-full rounded-xl bg-[var(--accent)] py-2.5 text-sm font-bold text-[var(--bg)] shadow transition hover:brightness-110"
                   >
-                    Gestionar inventario
+                    Ver inventario
                   </button>
                 </div>
               </div>
@@ -493,18 +341,8 @@ export function EmpleadoPortalPage() {
               <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
                   <h1 className="font-[family-name:var(--font-heading)] text-2xl font-bold text-[#004d4f]">Inventario de productos</h1>
-                  <p className="text-sm text-[var(--text)]/75">Gestiona el inventario; puedes adjuntar foto al crear o editar un producto.</p>
+                  <p className="text-sm text-[var(--text)]/75">Consulta precios y stock disponibles para la venta.</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDrawerProducto(true)
-                    setNpErr(null)
-                  }}
-                  className={`rounded-xl ${tealBg} px-5 py-2.5 text-sm font-bold text-white shadow`}
-                >
-                  + Nuevo producto
-                </button>
               </div>
               <div className="overflow-hidden rounded-2xl border border-white/10 bg-[var(--panel)] shadow-lg shadow-black/25">
                 <p className="border-b border-white/10 px-4 py-2 text-xs text-[var(--text)]/55">
@@ -517,7 +355,6 @@ export function EmpleadoPortalPage() {
                       <th className="px-4 py-3">Categoría</th>
                       <th className="px-4 py-3 text-right">Precio</th>
                       <th className="px-4 py-3 text-right">Stock</th>
-                      <th className="px-4 py-3 text-right">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -548,38 +385,6 @@ export function EmpleadoPortalPage() {
                         </td>
                         <td className="px-4 py-3 text-right font-medium">Q{p.precio}</td>
                         <td className="px-4 py-3 text-right">{p.stock}</td>
-                        <td className="px-4 py-3 text-right">
-                          <button
-                            type="button"
-                            title="Editar"
-                            className="inline-flex rounded-lg p-2 text-[#004d4f] hover:bg-[var(--accent)]/15"
-                            onClick={() => {
-                              void navigate({
-                                to: '/empleado/productos/editar/$productId',
-                                params: { productId: p.id },
-                                search: empleadoModalReturnSearch(search),
-                              })
-                            }}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </button>
-                          {p.activo ? (
-                            <button
-                              type="button"
-                              title="Desactivar"
-                              className="inline-flex rounded-lg p-2 text-red-400 hover:bg-red-500/15"
-                              onClick={() => {
-                                void navigate({
-                                  to: '/empleado/productos/desactivar/$productId',
-                                  params: { productId: p.id },
-                                  search: empleadoModalReturnSearch(search),
-                                })
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          ) : null}
-                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -602,7 +407,6 @@ export function EmpleadoPortalPage() {
                   setCategoriaId={setPosCat}
                   categoriasQ={categoriasQ}
                   productosQ={productosPosQ}
-                  reporteQ={reporteVentasQ}
                   homeLink="/empleado"
                   compact
                   roleHint="Caja"
@@ -676,272 +480,8 @@ export function EmpleadoPortalPage() {
             </div>
           )}
 
-          {tab === 'reportes' && (
-            <div className="space-y-6">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div>
-                  <h1 className="font-[family-name:var(--font-heading)] text-2xl font-bold text-[#004d4f]">Informes</h1>
-                  <p className="text-sm text-[var(--text)]/75">Indicadores de ventas, stock y clientes habituales.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (reportSub === 'top' && topQ.data?.length)
-                      exportCsv(
-                        'productos-mas-vendidos.csv',
-                        topQ.data.map((r) => ({
-                          rank: r.rank,
-                          producto: r.producto,
-                          categoria: r.categoria,
-                          total_vendido: r.total_vendido,
-                          ingresos: r.ingresos,
-                        })),
-                      )
-                    else if (reportSub === 'stock' && stockTabQ.data?.length)
-                      exportCsv(
-                        'stock.csv',
-                        stockTabQ.data.map((r) => ({ id: r.id, producto: r.producto, stock: r.stock, alerta: r.alerta })),
-                      )
-                    else if (reportSub === 'hoy' && d)
-                      exportCsv('ventas-del-dia.csv', [{ fecha: d.fecha, total_ventas: d.total_ventas, ingresos: d.ingresos }])
-                  }}
-                  className={`inline-flex items-center gap-2 rounded-xl border border-[#004d4f] px-4 py-2 text-sm font-bold text-[#004d4f] hover:bg-[#004d4f]/5`}
-                >
-                  Exportar CSV
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-2 border-b border-white/10 pb-2">
-                {(
-                  [
-                    ['hoy', 'Ventas hoy'],
-                    ['top', 'Top productos'],
-                    ['stock', 'Estado stock'],
-                    ['insights', 'Clientes frecuentes'],
-                  ] as const
-                ).map(([k, label]) => (
-                  <button
-                    key={k}
-                    type="button"
-                    onClick={() => goReportSub(k)}
-                    className={`rounded-full px-4 py-2 text-sm font-semibold ${
-                      reportSub === k ? `${tealBg} text-white` : 'bg-[var(--panel)] text-[var(--text)]/75 ring-1 ring-white/15'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              {reportSub === 'hoy' && (
-                <div className="rounded-2xl border border-white/10 bg-[var(--panel)] p-6 shadow-lg shadow-black/25">
-                  <p className="text-sm text-[var(--text)]/75">Totales del día en curso.</p>
-                  <p className="mt-4 text-3xl font-bold text-[var(--text)]">{d?.total_ventas ?? '—'} ventas</p>
-                  <p className="text-xl text-[#004d4f]">Q{d?.ingresos ?? '—'}</p>
-                  <p className="mt-2 text-xs text-[var(--text)]/45">Fecha: {d?.fecha}</p>
-                </div>
-              )}
-              {reportSub === 'top' && (
-                <div className="overflow-hidden rounded-2xl border border-white/10 bg-[var(--panel)] shadow-lg shadow-black/25">
-                  <table className="w-full text-left text-sm">
-                    <thead className="bg-[var(--primary)]/30 text-xs font-semibold uppercase text-[var(--text)]/55">
-                      <tr>
-                        <th className="px-4 py-3">#</th>
-                        <th className="px-4 py-3">Producto</th>
-                        <th className="px-4 py-3">Categoría</th>
-                        <th className="px-4 py-3 text-right">Unidades</th>
-                        <th className="px-4 py-3 text-right">Ingresos</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(topQ.data ?? []).map((r) => (
-                        <tr key={r.id_producto} className="border-b border-white/10">
-                          <td className="px-4 py-3">{r.rank}</td>
-                          <td className="px-4 py-3 font-medium">{r.producto}</td>
-                          <td className="px-4 py-3">{r.categoria}</td>
-                          <td className="px-4 py-3 text-right">{r.total_vendido}</td>
-                          <td className="px-4 py-3 text-right font-semibold text-[#004d4f]">Q{r.ingresos}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              {reportSub === 'stock' && (
-                <div className="overflow-hidden rounded-2xl border border-white/10 bg-[var(--panel)] shadow-lg shadow-black/25">
-                  <table className="w-full text-left text-sm">
-                    <thead className="bg-[var(--primary)]/30 text-xs font-semibold uppercase text-[var(--text)]/55">
-                      <tr>
-                        <th className="px-4 py-3">Producto</th>
-                        <th className="px-4 py-3 text-right">Stock</th>
-                        <th className="px-4 py-3">Alerta</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(stockTabQ.data ?? []).map((r) => (
-                        <tr key={r.id} className="border-b border-white/10">
-                          <td className="px-4 py-3 font-medium">{r.producto}</td>
-                          <td className="px-4 py-3 text-right">{r.stock}</td>
-                          <td className="px-4 py-3">
-                            {r.alerta ? <span className="text-xs font-bold text-red-600">Crítico</span> : <span className="text-[var(--text)]/45">—</span>}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              {reportSub === 'insights' && (
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-2xl border border-white/10 bg-[var(--panel)] p-5 shadow-lg shadow-black/25">
-                    <h3 className="font-bold text-[var(--text)]">Clientes frecuentes</h3>
-                    <p className="text-xs text-[var(--text)]/55">Quienes más compran y su gasto acumulado.</p>
-                    <ul className="mt-4 space-y-2 text-sm">
-                      {(freqQ.data ?? []).map((c) => (
-                        <li key={c.id} className="flex justify-between border-b border-white/10 py-2">
-                          <span>{c.nombre}</span>
-                          <span className="font-semibold text-[#004d4f]">Q{c.monto_total}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-[var(--panel)] p-5 shadow-lg shadow-black/25">
-                    <h3 className="font-bold text-[var(--text)]">Ventas por categoría</h3>
-                    <p className="text-xs text-[var(--text)]/55">Ingresos agrupados por categoría.</p>
-                    <ul className="mt-4 space-y-2 text-sm">
-                      {(porCatQ.data ?? []).slice(0, 6).map((r) => (
-                        <li key={r.categoria} className="flex justify-between">
-                          <span>{r.categoria}</span>
-                          <span>Q{r.ingresos}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
         </main>
       </div>
-
-      {drawerProducto && (
-        <div
-          className="fixed inset-0 z-50 flex justify-end bg-black/40"
-          role="presentation"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !createProd.isPending) setDrawerProducto(false)
-          }}
-        >
-          <div
-            className="flex h-full w-full max-w-md flex-col border-l border-white/10 bg-[var(--panel)] shadow-2xl"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="drawer-nuevo-producto-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
-              <div>
-                <h2 id="drawer-nuevo-producto-title" className="font-[family-name:var(--font-heading)] text-lg font-bold text-[var(--text)]">
-                  Nuevo producto
-                </h2>
-              </div>
-              <button type="button" className="rounded-full p-2 text-[var(--text)]/45 hover:bg-white/10" onClick={() => setDrawerProducto(false)} aria-label="Cerrar">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <form className="flex flex-1 flex-col gap-4 overflow-y-auto p-5" onSubmit={(e) => void onNuevoProducto(e)}>
-              <label className="block text-xs font-bold uppercase tracking-wide text-[var(--text)]/55">
-                Nombre
-                <input
-                  value={npNombre}
-                  onChange={(e) => setNpNombre(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-white/15 bg-black/25 px-3 py-2.5 text-sm text-[var(--text)] placeholder:text-[var(--text)]/40 outline-none ring-[var(--accent)]/20 focus:ring-2"
-                  placeholder="ej. Paleta de maracuyá"
-                />
-              </label>
-              <label className="block text-xs font-bold uppercase tracking-wide text-[var(--text)]/55">
-                Categoría
-                <select
-                  value={npCat}
-                  onChange={(e) => setNpCat(e.target.value === '' ? '' : e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-white/15 bg-black/25 px-3 py-2.5 text-sm text-[var(--text)] placeholder:text-[var(--text)]/40 outline-none ring-[var(--accent)]/20 focus:ring-2"
-                >
-                  <option value="">Seleccionar…</option>
-                  {(categoriasQ.data ?? []).map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.nombre}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block text-xs font-bold uppercase tracking-wide text-[var(--text)]/55">
-                Proveedor
-                <select
-                  value={npProv}
-                  onChange={(e) => setNpProv(e.target.value === '' ? '' : e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-white/15 bg-black/25 px-3 py-2.5 text-sm text-[var(--text)] placeholder:text-[var(--text)]/40 outline-none ring-[var(--accent)]/20 focus:ring-2"
-                >
-                  <option value="">Seleccionar…</option>
-                  {(proveedoresQ.data ?? []).map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.nombre}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block text-xs font-bold uppercase tracking-wide text-[var(--text)]/55">
-                Precio (Q)
-                <input
-                  value={npPrecio}
-                  onChange={(e) => setNpPrecio(e.target.value)}
-                  type="number"
-                  step="0.01"
-                  min={0}
-                  className="mt-1 w-full rounded-xl border border-white/15 bg-black/25 px-3 py-2.5 text-sm text-[var(--text)] placeholder:text-[var(--text)]/40 outline-none ring-[var(--accent)]/20 focus:ring-2"
-                />
-              </label>
-              <label className="block text-xs font-bold uppercase tracking-wide text-[var(--text)]/55">
-                Stock inicial
-                <input
-                  value={npStock}
-                  onChange={(e) => setNpStock(e.target.value)}
-                  type="number"
-                  min={0}
-                  className="mt-1 w-full rounded-xl border border-white/15 bg-black/25 px-3 py-2.5 text-sm text-[var(--text)] placeholder:text-[var(--text)]/40 outline-none ring-[var(--accent)]/20 focus:ring-2"
-                />
-              </label>
-              <label className="block text-xs font-bold uppercase tracking-wide text-[var(--text)]/55">
-                Descripción
-                <textarea value={npDesc} onChange={(e) => setNpDesc(e.target.value)} className="mt-1 w-full rounded-xl border border-white/15 bg-black/25 px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text)]/40 outline-none ring-[var(--accent)]/20 focus:ring-2" rows={2} />
-              </label>
-              <label className="block text-xs font-bold uppercase tracking-wide text-[var(--text)]/55">
-                Imagen (opcional)
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  className="mt-1 w-full text-sm"
-                  onChange={(e) => setNpFile(e.target.files?.[0] ?? null)}
-                />
-              </label>
-              {npErr && <p className="text-sm text-red-600">{npErr}</p>}
-              <div className="mt-auto flex justify-end gap-2 border-t border-white/10 pt-4">
-                <button
-                  type="button"
-                  className="rounded-xl px-4 py-2 text-sm font-semibold text-[var(--text)]/75 transition-colors hover:bg-white/10 hover:text-[var(--text)]"
-                  onClick={() => setDrawerProducto(false)}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={createProd.isPending}
-                  className={`rounded-xl ${tealBg} px-5 py-2 text-sm font-bold text-white transition-colors hover:brightness-110 disabled:pointer-events-none disabled:opacity-50`}
-                >
-                  {createProd.isPending ? 'Guardando…' : 'Guardar producto'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {drawerCliente && (
         <div

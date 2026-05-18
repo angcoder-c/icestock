@@ -3,17 +3,15 @@ import { Link, useNavigate } from '@tanstack/react-router'
 import { ArrowRight, CheckCircle2, Loader2, Store, UserRound } from 'lucide-react'
 
 import { useIcestock } from '#/context/icestock-context'
+import { useSetupStatusQuery } from '#/hooks/use-icestock-api'
 import { authClient } from '#/lib/auth-client'
+import { homePathForRol } from '#/lib/auth/role-routes'
 
 type AuthMode = 'login' | 'signup'
 
-function postLoginPath(rol: string | undefined) {
-  if (rol === 'admin') return '/portal'
-  if (rol === 'cajero') return '/empleado'
-  return '/tienda'
-}
-
 export function LoginHub({ redirect }: { redirect?: string }) {
+  const setupQ = useSetupStatusQuery()
+
   return (
     <div className="min-h-screen bg-[var(--bg)] px-4 py-10 text-[var(--text)] font-[family-name:var(--font-body)]">
       <div className="pointer-events-none fixed inset-0 overflow-hidden opacity-40">
@@ -35,6 +33,15 @@ export function LoginHub({ redirect }: { redirect?: string }) {
 
         {redirect ? (
           <p className="mt-4 text-center text-xs text-white/40">Al iniciar sesión te llevaremos al área que corresponda a tu cuenta.</p>
+        ) : null}
+
+        {setupQ.data?.needsBootstrap ? (
+          <div className="mt-8 rounded-2xl border border-violet-400/30 bg-violet-500/10 px-5 py-4 text-center text-sm text-white/80">
+            <p>Instalación nueva: crea el primer superadministrador.</p>
+            <Link to="/setup" className="mt-2 inline-block font-bold text-violet-300 hover:text-white">
+              Ir a configuración inicial →
+            </Link>
+          </div>
         ) : null}
 
         <div className="mt-12 grid gap-6 md:grid-cols-2">
@@ -60,9 +67,9 @@ export function LoginHub({ redirect }: { redirect?: string }) {
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--secondary)]/15 text-[var(--secondary)] ring-1 ring-[var(--secondary)]/25">
               <Store className="h-6 w-6" />
             </div>
-            <h2 className="mt-6 font-[family-name:var(--font-heading)] text-2xl font-bold text-white">Personal de caja</h2>
+            <h2 className="mt-6 font-[family-name:var(--font-heading)] text-2xl font-bold text-white">Personal</h2>
             <span className="mt-8 inline-flex items-center gap-2 text-sm font-bold text-[var(--secondary)]">
-              Entrar o registrarse <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+              Iniciar sesión <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
             </span>
           </Link>
         </div>
@@ -89,7 +96,7 @@ export function LoginAudiencePage({ audience, redirect: _redirect }: { audience:
 
   useEffect(() => {
     if (!sessionPending && session) {
-      void navigate({ to: postLoginPath(session.user.rol), replace: true })
+      void navigate({ to: homePathForRol(session.user.rol), replace: true })
     }
   }, [session, sessionPending, navigate])
 
@@ -133,7 +140,7 @@ export function LoginAudiencePage({ audience, redirect: _redirect }: { audience:
         email: email.trim(),
         password,
         name: name.trim(),
-        rol: audience === 'empleado' ? 'cajero' : 'cliente',
+        rol: 'cliente',
       })
       if (error) throw new Error(error.message || 'No se pudo registrar')
       setStatusMessage('Cuenta creada. Inicia sesión con el mismo correo.')
@@ -159,6 +166,7 @@ export function LoginAudiencePage({ audience, redirect: _redirect }: { audience:
   }
 
   const isCliente = audience === 'cliente'
+  const allowSignup = isCliente
   const accentClass = isCliente ? 'text-[var(--accent)]' : 'text-[var(--secondary)]'
   const ringFocus = isCliente ? 'focus:ring-[var(--accent)]/35' : 'focus:ring-[var(--secondary)]/30'
   const btnClass = isCliente
@@ -194,37 +202,52 @@ export function LoginAudiencePage({ audience, redirect: _redirect }: { audience:
             <p className="mt-2 text-sm leading-relaxed text-white/55">
               {isCliente
                 ? 'Inicia sesión o regístrate para comprar en la tienda.'
-                : 'Inicia sesión o regístrate para registrar ventas desde tu puesto.'}
+                : 'Inicia sesión con la cuenta que te asignó un administrador. El personal no se registra por su cuenta.'}
             </p>
-            <div className="mt-6 mb-6 grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-black/25 p-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthMode('login')
-                  setSignInError(null)
-                }}
-                className={`rounded-xl py-2.5 text-sm font-semibold transition ${
-                  authMode === 'login' ? 'bg-white/12 text-white shadow-sm' : 'text-white/40 hover:text-white/70'
-                }`}
-              >
-                Entrar
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthMode('signup')
-                  setSignInError(null)
-                }}
-                className={`rounded-xl py-2.5 text-sm font-semibold transition ${
-                  authMode === 'signup' ? 'bg-white/12 text-white shadow-sm' : 'text-white/40 hover:text-white/70'
-                }`}
-              >
-                Registro
-              </button>
-            </div>
+            {!allowSignup ? (
+              <p className="mt-3 text-xs text-white/40">
+                ¿Primera instalación?{' '}
+                <Link to="/setup" className="text-violet-300 hover:text-white">
+                  Configuración inicial
+                </Link>
+              </p>
+            ) : null}
+            {allowSignup ? (
+              <div className="mt-6 mb-6 grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-black/25 p-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode('login')
+                    setSignInError(null)
+                  }}
+                  className={`rounded-xl py-2.5 text-sm font-semibold transition ${
+                    authMode === 'login' ? 'bg-white/12 text-white shadow-sm' : 'text-white/40 hover:text-white/70'
+                  }`}
+                >
+                  Entrar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode('signup')
+                    setSignInError(null)
+                  }}
+                  className={`rounded-xl py-2.5 text-sm font-semibold transition ${
+                    authMode === 'signup' ? 'bg-white/12 text-white shadow-sm' : 'text-white/40 hover:text-white/70'
+                  }`}
+                >
+                  Registro
+                </button>
+              </div>
+            ) : (
+              <div className="mt-6 mb-2" />
+            )}
 
-            <form className="space-y-4" onSubmit={authMode === 'login' ? handleLoginSubmit : handleSignupSubmit}>
-            {authMode === 'signup' && (
+            <form
+              className="space-y-4"
+              onSubmit={allowSignup && authMode === 'signup' ? handleSignupSubmit : handleLoginSubmit}
+            >
+            {allowSignup && authMode === 'signup' && (
               <label className="block text-sm">
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-white/45">Nombre</span>
                 <input
@@ -259,7 +282,7 @@ export function LoginAudiencePage({ audience, redirect: _redirect }: { audience:
               />
               {fieldErrors.password && <span className="mt-1 block text-xs text-[var(--secondary)]">{fieldErrors.password}</span>}
             </label>
-            {authMode === 'signup' && (
+            {allowSignup && authMode === 'signup' && (
               <label className="block text-sm">
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-white/45">Confirmar contraseña</span>
                 <input
@@ -282,7 +305,7 @@ export function LoginAudiencePage({ audience, redirect: _redirect }: { audience:
             )}
             <button type="submit" disabled={isSubmitting} className={`flex w-full items-center justify-center gap-2 ${btnClass} disabled:opacity-50`}>
               {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-              {authMode === 'login' ? 'Continuar' : 'Crear cuenta'}
+              {!allowSignup || authMode === 'login' ? 'Continuar' : 'Crear cuenta'}
             </button>
           </form>
           </div>
