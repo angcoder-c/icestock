@@ -1,7 +1,8 @@
 -- ============================================================
---  Heladería "IceStock"
---  Credenciales fijas calificación: 
--- usuario: proy2 / password: secret
+--  Heladería "IceStock" — esquema canónico (init Docker: 01-schema.sql)
+--  Permisos por rol: db/roles.sql (02-roles.sql). Sin carpeta migrations.
+--  Credenciales fijas calificación:
+--  usuario: proy2 / password: secret
 -- ============================================================
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
@@ -95,8 +96,8 @@ CREATE TABLE Producto (
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Personas del negocio (compradores, vendedores, mostrador sin cuenta web).
--- user_id NULL = cliente de mostrador sin login; NOT NULL = cuenta Better Auth vinculada.
+-- Personas del negocio 
+-- user_id NULL = cliente de mostrador sin login
 CREATE TABLE Usuario (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id    TEXT UNIQUE REFERENCES "user"("id") ON DELETE SET NULL,
@@ -192,7 +193,6 @@ GROUP BY vend.id, vend.nombre, vu."rol";
 -- ============================================================
 
 -- ============================================================
--- SEEDS COMPLETOS HELADERÍA "FRÍO & PUNTO"
 -- 25 REGISTROS PARA CADA ENTIDAD PRINCIPAL
 -- PostgreSQL
 -- ============================================================
@@ -260,7 +260,8 @@ INSERT INTO Proveedor (id, nombre, telefono, email, direccion) VALUES
 (gen_random_uuid(), 'The Ice Factory', '5555-1025', 'factory@ice.com', 'Retalhuleu');
 
 -- ============================================================
--- USERS (25)
+-- CUENTAS DE DEMOSTRACIÓN (contraseña: secret)
+-- Instalación sin superadmin: usar /setup para el primero.
 -- ============================================================
 
 INSERT INTO "user" (
@@ -271,31 +272,67 @@ INSERT INTO "user" (
     rol
 )
 VALUES
-('usr001','Super Admin','super@heladeria.com',TRUE,'superadmin'),
-('usr002','Admin General','admin1@heladeria.com',TRUE,'admin'),
-('usr003','Ana Analista','analista@heladeria.com',TRUE,'analista'),
-('usr004','María López','maria@heladeria.com',TRUE,'cajero'),
-('usr005','Carlos Pérez','carlos@heladeria.com',TRUE,'cajero'),
-('usr006','Ana García','ana@heladeria.com',TRUE,'cajero'),
-('usr007','Luis Torres','luis@heladeria.com',TRUE,'cajero'),
-('usr008','Andrea Méndez','andrea@heladeria.com',TRUE,'cajero'),
-('usr009','José Ramírez','jose@heladeria.com',TRUE,'cajero'),
-('usr010','Patricia Morales','patricia@heladeria.com',TRUE,'cajero'),
-('usr011','Kevin Díaz','kevin@heladeria.com',TRUE,'cajero'),
-('usr012','Fernanda Ruiz','fernanda@heladeria.com',TRUE,'cajero'),
-('usr013','Miguel Castro','miguel@heladeria.com',TRUE,'cajero'),
-('usr014','Daniela Gómez','daniela@heladeria.com',TRUE,'cajero'),
-('usr015','Oscar Fuentes','oscar@heladeria.com',TRUE,'cajero'),
-('usr016','Valeria Cruz','valeria@heladeria.com',TRUE,'cliente'),
-('usr017','Pedro Alvarado','pedro@heladeria.com',TRUE,'cliente'),
-('usr018','Sofía Castillo','sofia@heladeria.com',TRUE,'cliente'),
-('usr019','Diego Flores','diego@heladeria.com',TRUE,'cliente'),
-('usr020','Gabriela León','gabriela@heladeria.com',TRUE,'cliente'),
-('usr021','Héctor Reyes','hector@heladeria.com',TRUE,'cliente'),
-('usr022','Natalia Pérez','natalia@heladeria.com',TRUE,'cliente'),
-('usr023','Fernando Ortiz','fernando@heladeria.com',TRUE,'cliente'),
-('usr024','Claudia Ríos','claudia@heladeria.com',TRUE,'cliente'),
-('usr025','Tomás Jiménez','tomas@heladeria.com',TRUE,'cliente');
+('usr-demo-super', 'Superadmin Demo',    'superadmin@heladeria.com', TRUE, 'superadmin'),
+('usr-demo-admin', 'Administrador Demo', 'admin@heladeria.com',      TRUE, 'admin'),
+('usr-demo-anal',  'Analista Demo',      'analista@heladeria.com',   TRUE, 'analista'),
+('usr-demo-cajero','Cajero Demo',        'cajero@heladeria.com',     TRUE, 'cajero'),
+('usr-demo-cli',   'Cliente Demo',       'cliente@heladeria.com',    TRUE, 'cliente');
+
+INSERT INTO account (
+    id,
+    "accountId",
+    "providerId",
+    "userId",
+    password,
+    "createdAt",
+    "updatedAt"
+)
+VALUES
+(
+    'acc-demo-super',
+    'superadmin@heladeria.com',
+    'credential',
+    'usr-demo-super',
+    'a9280d74a6b3755c40d1ad260e1e597a:51379e1ba8f25f8cdeb596f7cbe8e661bd81ee0a2b6882591dde9b624cb6cea291461339abc29eea3825a065de5cb44e7c94db093c21035d6c2b7a24b058d6bb',
+    NOW(),
+    NOW()
+),
+(
+    'acc-demo-admin',
+    'admin@heladeria.com',
+    'credential',
+    'usr-demo-admin',
+    'a9280d74a6b3755c40d1ad260e1e597a:51379e1ba8f25f8cdeb596f7cbe8e661bd81ee0a2b6882591dde9b624cb6cea291461339abc29eea3825a065de5cb44e7c94db093c21035d6c2b7a24b058d6bb',
+    NOW(),
+    NOW()
+),
+(
+    'acc-demo-anal',
+    'analista@heladeria.com',
+    'credential',
+    'usr-demo-anal',
+    'a9280d74a6b3755c40d1ad260e1e597a:51379e1ba8f25f8cdeb596f7cbe8e661bd81ee0a2b6882591dde9b624cb6cea291461339abc29eea3825a065de5cb44e7c94db093c21035d6c2b7a24b058d6bb',
+    NOW(),
+    NOW()
+),
+(
+    'acc-demo-cajero',
+    'cajero@heladeria.com',
+    'credential',
+    'usr-demo-cajero',
+    'a9280d74a6b3755c40d1ad260e1e597a:51379e1ba8f25f8cdeb596f7cbe8e661bd81ee0a2b6882591dde9b624cb6cea291461339abc29eea3825a065de5cb44e7c94db093c21035d6c2b7a24b058d6bb',
+    NOW(),
+    NOW()
+),
+(
+    'acc-demo-cli',
+    'cliente@heladeria.com',
+    'credential',
+    'usr-demo-cli',
+    'a9280d74a6b3755c40d1ad260e1e597a:51379e1ba8f25f8cdeb596f7cbe8e661bd81ee0a2b6882591dde9b624cb6cea291461339abc29eea3825a065de5cb44e7c94db093c21035d6c2b7a24b058d6bb',
+    NOW(),
+    NOW()
+);
 
 -- ============================================================
 -- USUARIOS (cuentas Better Auth + mostrador sin login)
