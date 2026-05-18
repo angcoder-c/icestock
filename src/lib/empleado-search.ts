@@ -1,32 +1,23 @@
-export type EmpleadoTab = 'inicio' | 'productos' | 'ventas' | 'clientes' | 'reportes'
-export type EmpleadoReportSub = 'hoy' | 'top' | 'stock' | 'insights'
+export type EmpleadoTab = 'inicio' | 'productos' | 'ventas' | 'clientes'
 
-const TABS = new Set<EmpleadoTab>(['inicio', 'productos', 'ventas', 'clientes', 'reportes'])
-const REPORT_SUBS = new Set<EmpleadoReportSub>(['hoy', 'top', 'stock', 'insights'])
+const TABS = new Set<EmpleadoTab>(['inicio', 'productos', 'ventas', 'clientes'])
 
 export type EmpleadoSearch = {
   tab?: EmpleadoTab
-  reportSub?: EmpleadoReportSub
 }
 
 function parseTab(v: unknown): EmpleadoTab | undefined {
   return typeof v === 'string' && TABS.has(v as EmpleadoTab) ? (v as EmpleadoTab) : undefined
 }
 
-function parseReportSub(v: unknown): EmpleadoReportSub | undefined {
-  return typeof v === 'string' && REPORT_SUBS.has(v as EmpleadoReportSub) ? (v as EmpleadoReportSub) : undefined
-}
-
-/** Búsqueda opcional en `/empleado?tab=…&reportSub=…` */
+/** Búsqueda opcional en `/empleado?tab=…` */
 export function parseEmpleadoSearch(raw: Record<string, unknown>): EmpleadoSearch {
   return {
     tab: parseTab(raw.tab),
-    reportSub: parseReportSub(raw.reportSub),
   }
 }
 
 /** Al volver de un modal anidado bajo `/empleado`. */
 export function empleadoModalReturnSearch(s: EmpleadoSearch): EmpleadoSearch {
-  if (s.tab === 'reportes') return { tab: 'reportes', reportSub: s.reportSub ?? 'hoy' }
-  return { tab: s.tab ?? 'productos' }
+  return { tab: s.tab ?? 'clientes' }
 }
