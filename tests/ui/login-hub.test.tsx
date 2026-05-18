@@ -47,6 +47,6 @@ describe('LoginHub (UI)', () => {
       expect(screen.getByRole('heading', { name: /acceso al sistema/i })).toBeInTheDocument()
     })
     expect(screen.getByRole('heading', { name: /^cliente$/i })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /personal de caja/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /^personal$/i })).toBeInTheDocument()
   })
 })
