@@ -18,8 +18,3 @@ export async function getSessionUser(request: Request): Promise<SessionUser | nu
     rol: (u as { rol?: string }).rol,
   }
 }
-
-/** Personal interno (admin / cajero), no clientes del mostrador */
-export function isStaffUser(user: SessionUser | null | undefined): boolean {
-  return !!user && user.rol !== 'cliente'
-}

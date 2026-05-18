@@ -35,8 +35,12 @@ export const auth = betterAuth({
       create: {
         before: async (user) => {
           const raw = (user as { rol?: string }).rol
-          const rol = raw === 'cajero' || raw === 'cliente' ? raw : 'cliente'
-          return { data: { ...user, rol } }
+          if (raw && raw !== 'cliente') {
+            throw new Error(
+              'El registro público solo está disponible para clientes de la tienda. El personal debe ser dado de alta por un administrador.',
+            )
+          }
+          return { data: { ...user, rol: 'cliente' } }
         },
       },
     },
