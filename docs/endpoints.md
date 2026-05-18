@@ -8,6 +8,78 @@ Base URL: `http://localhost:3000`
 
 ---
 
+## Permisos por rol
+
+La API valida cada ruta con una **matriz de permisos** (`src/lib/api/permissions.ts`), alineada con los roles PostgreSQL de `db/roles.sql`. El campo `user.rol` de Better Auth determina qué operaciones HTTP puede ejecutar la sesión (además de `SET LOCAL ROLE` en base de datos).
+
+### Roles
+
+| `user.rol`     | Descripción breve                          |
+| -------------- | ------------------------------------------ |
+| `cliente`      | Tienda en línea, perfil y compras propias  |
+| `cajero`       | POS, ventas con vendedor, clientes         |
+| `analista`     | Lectura, reportes y dashboard              |
+| `admin`        | Operación, catálogo, personal, anulaciones |
+| `superadmin`   | Igual que admin + capacidades reservadas   |
+
+### Matriz rol → permiso
+
+| Permiso | cliente | cajero | analista | admin | superadmin |
+| ------- | :-----: | :----: | :------: | :---: | :--------: |
+| `catalog:read_public` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `catalog:read` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `catalog:write` | | | | ✓ | ✓ |
+| `catalog:upload` | | | | ✓ | ✓ |
+| `clients:me` | ✓ | | | | |
+| `clients:read` | | ✓ | ✓ | ✓ | ✓ |
+| `clients:write` | | ✓ | | ✓ | ✓ |
+| `sales:read` | | ✓ | ✓ | ✓ | ✓ |
+| `sales:create_pos` | | ✓ | | ✓ | ✓ |
+| `sales:create_self` | ✓ | | | | ✓ |
+| `sales:void` | | | | ✓ | ✓ |
+| `reports:read` | | | ✓ | ✓ | ✓ |
+| `staff:read` | | | | ✓ | ✓ |
+| `staff:write` | | | | ✓ | ✓ |
+| `staff:invite` | | | | | ✓ |
+| `meta:dashboard` | | | ✓ | ✓ | ✓ |
+
+### Endpoints y permiso requerido
+
+| Método | Ruta | Permiso(s) | Auth |
+| ------ | ---- | ---------- | ---- |
+| GET | `/api/` | `meta:dashboard` (sin sesión → rol analista en BD) | opcional |
+| GET | `/api/categorias` | lectura pública | no |
+| POST | `/api/categorias` | `catalog:write` | sí |
+| PUT/DELETE | `/api/categorias/:id` | `catalog:write` | sí |
+| GET | `/api/productos` | `catalog:read_public` (sin sesión) / `catalog:read` | opcional |
+| GET | `/api/productos?stock_bajo&incluir_inactivos` | `sales:read` o `catalog:write` | sí |
+| POST | `/api/productos` | `catalog:write` | sí |
+| GET | `/api/productos/:id` | `catalog:read` | sí |
+| PUT/DELETE | `/api/productos/:id` | `catalog:write` | sí |
+| POST | `/api/upload/imagen` | `catalog:upload` | sí |
+| GET | `/api/proveedores` | `catalog:read` | sí |
+| POST | `/api/proveedores` | `catalog:write` | sí |
+| PUT/DELETE | `/api/proveedores/:id` | `catalog:write` | sí |
+| GET/POST | `/api/clientes` | `clients:read` / `clients:write` | sí |
+| GET/PUT/DELETE | `/api/clientes/:id` | `clients:read` / `clients:write` | sí |
+| GET | `/api/clientes/me` | `clients:me` | sí |
+| GET | `/api/clientes/me/ventas` | `clients:me` | sí |
+| GET | `/api/ventas` | `sales:read` | sí |
+| POST | `/api/ventas` | `sales:create_pos` **o** `sales:create_self` | sí |
+| GET | `/api/ventas/:id` | `sales:read` | sí |
+| DELETE | `/api/ventas/:id` | `sales:void` | sí |
+| GET/POST | `/api/empleados` | `staff:read` / `staff:write` | sí |
+| PUT/DELETE | `/api/empleados/:userId` | `staff:write` | sí |
+| GET | `/api/reportes/*` | `reports:read` | sí |
+
+**Alta de personal (`POST /api/empleados`):** `admin` puede asignar `cajero` o `admin`; `superadmin` puede asignar `cajero`, `analista` o `admin`.
+
+**Respuesta 403:** `{ "error": "Sin permiso: …" }` con descripción del permiso faltante.
+
+Implementación en código: `requireAuthAndPermission(request, '…')` desde `src/lib/api/guard.ts`.
+
+---
+
 ## Auth — Better Auth
 
 Better Auth expone sus rutas automáticamente en `/api/auth/`*.
@@ -724,14 +796,14 @@ Anula la venta y restaura el stock (transacción explícita).
 **Response 403**
 
 ```json
-{ "error": "Solo un administrador puede anular ventas" }
+{ "error": "Sin permiso: anular ventas y restaurar stock" }
 ```
 
 ---
 
 ## Empleados — `/api/empleados`
 
-Solo accesible con `rol = 'admin'`. El middleware verifica el campo `rol` del user de Better Auth.
+Requiere permisos `staff:read` (GET) o `staff:write` (POST, PUT, DELETE): roles `admin` y `superadmin`. Ver [matriz de permisos](#permisos-por-rol).
 
 ### GET `/api/empleados`
 
@@ -935,11 +1007,16 @@ export async function requireSession(req, res, next) {
   next()
 }
 
-export function requireAdmin(req, res, next) {
-  if (req.user?.rol !== 'admin')
-    return res.status(403).json({ error: 'Se requiere rol admin' })
-  next()
+import { can } from './permissions.js'
+
+export function requirePermission(permission) {
+  return (req, res, next) => {
+    if (!can(req.user, permission))
+      return res.status(403).json({ error: `Sin permiso: ${permission}` })
+    next()
+  }
 }
+// Ejemplo: router.delete('/ventas/:id', requireSession, requirePermission('sales:void'), ...)
 ```
 
 ---

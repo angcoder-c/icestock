@@ -19,8 +19,27 @@ Resumen de las operaciones sobre PostgreSQL usadas por la aplicación. El códig
 | Objeto | Tipo | Uso |
 |--------|------|-----|
 | `vista_ventas_completa` | VIEW | Reportes del día, listados desnormalizados para UI |
-| `registrar_venta(...)` | FUNCTION | Registro transaccional alternativo (JSONB de ítems) |
+| `vista_metricas_empleado` | VIEW | Totales por vendedor (admin / analista) |
+| `registrar_venta(...)` | FUNCTION | Registro transaccional (JSONB de ítems); `SECURITY DEFINER` |
+| `fn_mis_compras(uuid)` | FUNCTION | Historial del cliente (`rol_cliente`) |
+| `fn_catalogo_activo()` | FUNCTION | Catálogo activo para tienda |
 | Índices en FK / `Venta.fecha` | INDEX | Filtros por fecha, joins y listados |
+
+## Roles PostgreSQL (`db/roles.sql`)
+
+| Rol PG | `user.rol` | Resumen |
+|--------|------------|---------|
+| `rol_cliente` | `cliente` | Catálogo, `fn_mis_compras`, registrar compra propia |
+| `rol_cajero` | `cajero` | POS, ventas, `registrar_venta` |
+| `rol_analista` | `analista` | Solo `SELECT` + vistas (CSV / gráficos) |
+| `rol_admin` | `admin` | Analista + CRUD catálogo + anular ventas |
+| `rol_superadmin` | `superadmin` | Todo el esquema de negocio |
+
+Conexión: `icestock_app` (o `proy3` en Docker) con `SET ROLE` según sesión. Ver [`db/roles.sql`](../../db/roles.sql).
+
+### Capa API (permisos HTTP)
+
+La aplicación valida cada handler con la matriz en [`src/lib/api/permissions.ts`](../../src/lib/api/permissions.ts) (`can`, `requireAuthAndPermission`). Resumen documentado en [docs/endpoints.md — Permisos por rol](../endpoints.md#permisos-por-rol).
 
 ---
 
