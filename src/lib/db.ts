@@ -1,18 +1,21 @@
-import pg from 'pg'
 import dotenv from 'dotenv'
 import { hashPassword } from 'better-auth/crypto'
 import { v4 as uuidv4 } from 'uuid'
 
+import { pgQuery, runWithDbRole, runWithoutDbRole, withPgTransaction } from '#/lib/db-role'
+import { db, pool } from '#/lib/pg-pool'
+
 dotenv.config()
+
+export { db, pool }
 
 type SaleItem = {
   id_producto: string
   cantidad: number
 }
 
-import { pgPoolConfig } from '#/lib/pg-config'
-
-export const db = new pg.Pool(pgPoolConfig())
+/** Personal con cuenta Better Auth (no compradores). */
+const SQL_STAFF_ROLES = `'cajero', 'analista', 'admin', 'superadmin'`
 
 // ============================================================
 //  AUTENTICACIÓN: Usar Better Auth via sus APIs automáticas
@@ -46,7 +49,7 @@ export async function getVentasDesdeVista(limit = 20) {
     LIMIT $1
   `
 
-  const result = await db.query(query, [limit])
+  const result = await pgQuery(query, [limit])
   return result.rows
 }
 
@@ -57,20 +60,19 @@ export async function getVentasConClienteYEmpleado(limit = 20) {
       v.fecha,
       v.total,
       v.estado,
-      c.nombre AS cliente,
-      u.name AS empleado,
+      comp.nombre AS cliente,
+      vend.nombre AS empleado,
       COUNT(dv.id) AS lineas
     FROM Venta v
-    LEFT JOIN Cliente c ON c.id = v.id_cliente
-    LEFT JOIN Empleado e ON e.id = v.empleado_id
-    LEFT JOIN "user" u ON u.id = e.user_id
+    LEFT JOIN Usuario comp ON comp.id = v.id_comprador
+    LEFT JOIN Usuario vend ON vend.id = v.id_vendedor
     LEFT JOIN DetalleVenta dv ON dv.id_venta = v.id
-    GROUP BY v.id, v.fecha, v.total, v.estado, c.nombre, u.name
+    GROUP BY v.id, v.fecha, v.total, v.estado, comp.nombre, vend.nombre
     ORDER BY v.fecha DESC
     LIMIT $1
   `
 
-  const result = await db.query(query, [limit])
+  const result = await pgQuery(query, [limit])
   return result.rows
 }
 
@@ -91,7 +93,7 @@ export async function getProductosConCategoriaYProveedor(limit = 30) {
     LIMIT $1
   `
 
-  const result = await db.query(query, [limit])
+  const result = await pgQuery(query, [limit])
   return result.rows
 }
 
@@ -112,24 +114,24 @@ export async function getDetalleVentaJoin(limit = 30) {
     LIMIT $1
   `
 
-  const result = await db.query(query, [limit])
+  const result = await pgQuery(query, [limit])
   return result.rows
 }
 
 export async function getClientesConCompraMayorA(monto: number) {
   const query = `
-    SELECT c.id, c.nombre, c.email
-    FROM Cliente c
-    WHERE c.id IN (
-      SELECT v.id_cliente
+    SELECT u.id, u.nombre, u.email
+    FROM Usuario u
+    WHERE u.id IN (
+      SELECT v.id_comprador
       FROM Venta v
-      WHERE v.id_cliente IS NOT NULL
+      WHERE v.id_comprador IS NOT NULL
         AND v.total >= $1
     )
-    ORDER BY c.nombre
+    ORDER BY u.nombre
   `
 
-  const result = await db.query(query, [monto])
+  const result = await pgQuery(query, [monto])
   return result.rows
 }
 
@@ -145,7 +147,7 @@ export async function getProductosSinVentas() {
     ORDER BY p.id
   `
 
-  const result = await db.query(query)
+  const result = await pgQuery(query)
   return result.rows
 }
 
@@ -166,7 +168,7 @@ export async function getVentasPorCategoria(minTotal = 0) {
     ORDER BY total_vendido DESC
   `
 
-  const result = await db.query(query, [minTotal])
+  const result = await pgQuery(query, [minTotal])
   return result.rows
 }
 
@@ -193,21 +195,19 @@ export async function getRankingProductosCte() {
     LIMIT 10
   `
 
-  const result = await db.query(query)
+  const result = await pgQuery(query)
   return result.rows
 }
 
 export async function crearVentaTransaccional(params: {
   user_id: string
+  /** UUID en Usuario del vendedor (id_vendedor). */
   empleado_id: string | null
+  /** UUID en Usuario del comprador (id_comprador). */
   id_cliente: string | null
   items: SaleItem[]
 }) {
-  const client = await db.connect()
-
-  try {
-    await client.query('BEGIN')
-
+  return withPgTransaction(async (client) => {
     let total = 0
 
     for (const item of params.items) {
@@ -236,11 +236,11 @@ export async function crearVentaTransaccional(params: {
 
     const ventaResult = await client.query(
       `
-        INSERT INTO Venta (id_cliente, user_id, empleado_id, total)
+        INSERT INTO Venta (user_id, id_comprador, id_vendedor, total)
         VALUES ($1, $2, $3, 0)
         RETURNING id
       `,
-      [params.id_cliente, params.user_id, params.empleado_id],
+      [params.user_id, params.id_cliente, params.empleado_id],
     )
 
     const ventaId = ventaResult.rows[0].id as string
@@ -272,15 +272,8 @@ export async function crearVentaTransaccional(params: {
 
     await client.query('UPDATE Venta SET total = $1 WHERE id = $2', [total, ventaId])
 
-    await client.query('COMMIT')
-
     return { ventaId, total }
-  } catch (error) {
-    await client.query('ROLLBACK')
-    throw error
-  } finally {
-    client.release()
-  }
+  })
 }
 
 export async function getDashboardData() {
@@ -330,19 +323,19 @@ export async function createCategoria(nombre: string, descripcion?: string) {
     VALUES ($1, $2)
     RETURNING id, nombre, descripcion
   `
-  const result = await db.query(query, [nombre, descripcion || null])
+  const result = await pgQuery(query, [nombre, descripcion || null])
   return result.rows[0]
 }
 
 export async function getCategoria(id: string) {
   const query = 'SELECT id, nombre, descripcion FROM Categoria WHERE id = $1'
-  const result = await db.query(query, [id])
+  const result = await pgQuery(query, [id])
   return result.rows[0] || null
 }
 
 export async function getCategorias(limit = 50) {
   const query = 'SELECT id, nombre, descripcion FROM Categoria ORDER BY nombre LIMIT $1'
-  const result = await db.query(query, [limit])
+  const result = await pgQuery(query, [limit])
   return result.rows
 }
 
@@ -366,13 +359,13 @@ export async function updateCategoria(id: string, nombre?: string, descripcion?:
   query += ' ' + updates.join(', ') + ` WHERE id = $${params.length + 1} RETURNING id, nombre, descripcion`
   params.push(id)
 
-  const result = await db.query(query, params)
+  const result = await pgQuery(query, params)
   return result.rows[0] || null
 }
 
 export async function deleteCategoria(id: string) {
   const query = 'DELETE FROM Categoria WHERE id = $1 RETURNING id'
-  const result = await db.query(query, [id])
+  const result = await pgQuery(query, [id])
   return result.rows[0] || null
 }
 
@@ -386,19 +379,19 @@ export async function createProveedor(nombre: string, telefono?: string, email?:
     VALUES ($1, $2, $3, $4)
     RETURNING id, nombre, telefono, email, direccion
   `
-  const result = await db.query(query, [nombre, telefono || null, email || null, direccion || null])
+  const result = await pgQuery(query, [nombre, telefono || null, email || null, direccion || null])
   return result.rows[0]
 }
 
 export async function getProveedor(id: string) {
   const query = 'SELECT id, nombre, telefono, email, direccion FROM Proveedor WHERE id = $1'
-  const result = await db.query(query, [id])
+  const result = await pgQuery(query, [id])
   return result.rows[0] || null
 }
 
 export async function getProveedores(limit = 50) {
   const query = 'SELECT id, nombre, telefono, email, direccion FROM Proveedor ORDER BY nombre LIMIT $1'
-  const result = await db.query(query, [limit])
+  const result = await pgQuery(query, [limit])
   return result.rows
 }
 
@@ -432,13 +425,13 @@ export async function updateProveedor(id: string, nombre?: string, telefono?: st
   query += ' ' + updates.join(', ') + ` WHERE id = $${params.length + 1} RETURNING id, nombre, telefono, email, direccion`
   params.push(id)
 
-  const result = await db.query(query, params)
+  const result = await pgQuery(query, params)
   return result.rows[0] || null
 }
 
 export async function deleteProveedor(id: string) {
   const query = 'DELETE FROM Proveedor WHERE id = $1 RETURNING id'
-  const result = await db.query(query, [id])
+  const result = await pgQuery(query, [id])
   return result.rows[0] || null
 }
 
@@ -460,7 +453,7 @@ export async function createProducto(
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
     RETURNING id, nombre, descripcion, precio, stock, id_categoria, id_proveedor, imagen_url, activo, created_at
   `
-  const result = await db.query(query, [nombre, descripcion || null, precio, stock, id_categoria, id_proveedor, imagen_url ?? null, true])
+  const result = await pgQuery(query, [nombre, descripcion || null, precio, stock, id_categoria, id_proveedor, imagen_url ?? null, true])
   return result.rows[0]
 }
 
@@ -469,7 +462,7 @@ export async function getProducto(id: string) {
     SELECT id, nombre, descripcion, precio, stock, id_categoria, id_proveedor, imagen_url, activo, created_at
     FROM Producto WHERE id = $1
   `
-  const result = await db.query(query, [id])
+  const result = await pgQuery(query, [id])
   return result.rows[0] || null
 }
 
@@ -477,7 +470,7 @@ export async function getProductos(limit = 50, activos_solo = true) {
   let query = 'SELECT id, nombre, descripcion, precio, stock, id_categoria, id_proveedor, imagen_url, activo, created_at FROM Producto'
   if (activos_solo) query += ' WHERE activo = true'
   query += ' ORDER BY nombre LIMIT $1'
-  const result = await db.query(query, [limit])
+  const result = await pgQuery(query, [limit])
   return result.rows
 }
 
@@ -511,73 +504,86 @@ export async function updateProducto(
     ` WHERE id = $${params.length + 1} RETURNING id, nombre, descripcion, precio, stock, id_categoria, id_proveedor, imagen_url, activo, created_at`
   params.push(id)
 
-  const result = await db.query(query, params)
+  const result = await pgQuery(query, params)
   return result.rows[0] || null
 }
 
 export async function deleteProducto(id: string) {
   const query = 'DELETE FROM Producto WHERE id = $1 RETURNING id'
-  const result = await db.query(query, [id])
+  const result = await pgQuery(query, [id])
   return result.rows[0] || null
 }
 
 // ============================================================
-//  CRUD: CLIENTE
+//  CRUD: CLIENTE (tabla Usuario — compradores)
 // ============================================================
 
 export async function createCliente(nombre: string, email?: string, telefono?: string) {
   const query = `
-    INSERT INTO Cliente (nombre, email, telefono, created_at)
-    VALUES ($1, $2, $3, NOW())
+    INSERT INTO Usuario (nombre, email, telefono, activo, created_at)
+    VALUES ($1, $2, $3, TRUE, NOW())
     RETURNING id, nombre, email, telefono, created_at
   `
-  const result = await db.query(query, [nombre, email || null, telefono || null])
+  const result = await pgQuery(query, [nombre, email || null, telefono || null])
   return result.rows[0]
 }
 
 export async function getCliente(id: string) {
   const query = `
     SELECT id, nombre, email, telefono, created_at
-    FROM Cliente WHERE id = $1
+    FROM Usuario WHERE id = $1
   `
-  const result = await db.query(query, [id])
+  const result = await pgQuery(query, [id])
   return result.rows[0] || null
 }
 
 export async function getClientes(limit = 50) {
   const query = `
-    SELECT id, nombre, email, telefono, created_at
-    FROM Cliente ORDER BY nombre LIMIT $1
+    SELECT u.id, u.nombre, u.email, u.telefono, u.created_at
+    FROM Usuario u
+    LEFT JOIN "user" usr ON usr.id = u.user_id
+    WHERE u.activo = TRUE
+      AND (u.user_id IS NULL OR usr.rol = 'cliente')
+    ORDER BY u.nombre
+    LIMIT $1
   `
-  const result = await db.query(query, [limit])
+  const result = await pgQuery(query, [limit])
   return result.rows
 }
 
-/** Perfil de compra vinculado al correo del usuario (registro en Cliente). */
-export async function getOrCreateClienteForUser(opts: { nombre: string; email: string }) {
+/** Perfil de compra vinculado a la cuenta Better Auth (rol cliente). */
+export async function getOrCreateClienteForUser(opts: { nombre: string; email: string; userId: string }) {
   const email = opts.email.trim()
   const nombre = opts.nombre.trim()
   if (!email) throw new Error('El usuario no tiene correo para vincular la compra')
-  const find = await db.query(
-    `SELECT id, nombre, email, telefono FROM Cliente
+  const byUser = await pgQuery(
+    `SELECT id, nombre, email, telefono FROM Usuario WHERE user_id = $1 LIMIT 1`,
+    [opts.userId],
+  )
+  if (byUser.rows[0]) return byUser.rows[0] as { id: string; nombre: string; email: string | null; telefono: string | null }
+  const find = await pgQuery(
+    `SELECT id, nombre, email, telefono FROM Usuario
      WHERE email IS NOT NULL AND LOWER(TRIM(email)) = LOWER(TRIM($1)) LIMIT 1`,
     [email],
   )
-  if (find.rows[0]) return find.rows[0] as { id: string; nombre: string; email: string | null; telefono: string | null }
+  if (find.rows[0]) {
+    const row = find.rows[0] as { id: string; nombre: string; email: string | null; telefono: string | null }
+    await pgQuery(`UPDATE Usuario SET user_id = $1 WHERE id = $2 AND user_id IS NULL`, [opts.userId, row.id])
+    return row
+  }
   try {
-    const ins = await db.query(
-      `INSERT INTO Cliente (nombre, email, telefono, created_at)
-       VALUES ($1, $2, NULL, NOW())
+    const ins = await pgQuery(
+      `INSERT INTO Usuario (user_id, nombre, email, telefono, activo, created_at)
+       VALUES ($1, $2, $3, NULL, TRUE, NOW())
        RETURNING id, nombre, email, telefono`,
-      [nombre, email],
+      [opts.userId, nombre, email],
     )
     return ins.rows[0] as { id: string; nombre: string; email: string | null; telefono: string | null }
   } catch (e) {
     if (typeof e === 'object' && e !== null && 'code' in e && (e as { code: string }).code === '23505') {
-      const again = await db.query(
-        `SELECT id, nombre, email, telefono FROM Cliente
-         WHERE email IS NOT NULL AND LOWER(TRIM(email)) = LOWER(TRIM($1)) LIMIT 1`,
-        [email],
+      const again = await pgQuery(
+        `SELECT id, nombre, email, telefono FROM Usuario WHERE user_id = $1 LIMIT 1`,
+        [opts.userId],
       )
       if (again.rows[0]) return again.rows[0] as { id: string; nombre: string; email: string | null; telefono: string | null }
     }
@@ -586,7 +592,7 @@ export async function getOrCreateClienteForUser(opts: { nombre: string; email: s
 }
 
 export async function updateCliente(id: string, nombre?: string, email?: string, telefono?: string) {
-  let query = 'UPDATE Cliente SET'
+  let query = 'UPDATE Usuario SET'
   const params: (string | number)[] = []
   const updates: string[] = []
 
@@ -610,49 +616,54 @@ export async function updateCliente(id: string, nombre?: string, email?: string,
   query += ' ' + updates.join(', ') + ` WHERE id = $${params.length + 1} RETURNING id, nombre, email, telefono, created_at`
   params.push(id)
 
-  const result = await db.query(query, params)
+  const result = await pgQuery(query, params)
   return result.rows[0] || null
 }
 
 export async function deleteCliente(id: string) {
-  const query = 'DELETE FROM Cliente WHERE id = $1 RETURNING id'
-  const result = await db.query(query, [id])
+  const query = 'DELETE FROM Usuario WHERE id = $1 RETURNING id'
+  const result = await pgQuery(query, [id])
   return result.rows[0] || null
 }
 
 // ============================================================
-//  CRUD: EMPLEADO (vinculado a Better Auth user)
+//  CRUD: EMPLEADO (tabla Usuario — personal con user_id)
 // ============================================================
 
 export async function createEmpleado(user_id: string) {
+  const auth = await pgQuery(`SELECT name, email FROM "user" WHERE id = $1`, [user_id])
+  const u = auth.rows[0] as { name: string; email: string } | undefined
+  if (!u) throw new Error('Usuario de autenticación no encontrado')
   const query = `
-    INSERT INTO Empleado (user_id, activo, created_at)
-    VALUES ($1, $2, NOW())
+    INSERT INTO Usuario (user_id, nombre, email, activo, created_at)
+    VALUES ($1, $2, $3, TRUE, NOW())
     RETURNING id, user_id, activo, created_at
   `
-  const result = await db.query(query, [user_id, true])
+  const result = await pgQuery(query, [user_id, u.name, u.email])
   return result.rows[0]
 }
 
 export async function getEmpleado(id: string) {
   const query = `
-    SELECT e.id, e.user_id, e.activo, e.created_at, u.name, u.email, u.rol
-    FROM Empleado e
-    JOIN "user" u ON u.id = e.user_id
-    WHERE e.id = $1
+    SELECT u.id, u.user_id, u.activo, u.created_at, usr.name, usr.email, usr.rol
+    FROM Usuario u
+    JOIN "user" usr ON usr.id = u.user_id
+    WHERE u.id = $1 AND usr.rol IN (${SQL_STAFF_ROLES})
   `
-  const result = await db.query(query, [id])
+  const result = await pgQuery(query, [id])
   return result.rows[0] || null
 }
 
 export async function getEmpleados(limit = 50) {
   const query = `
-    SELECT e.id, e.user_id, e.activo, e.created_at, u.name, u.email, u.rol
-    FROM Empleado e
-    JOIN "user" u ON u.id = e.user_id
-    ORDER BY u.name LIMIT $1
+    SELECT u.id, u.user_id, u.activo, u.created_at, usr.name, usr.email, usr.rol
+    FROM Usuario u
+    JOIN "user" usr ON usr.id = u.user_id
+    WHERE usr.rol IN (${SQL_STAFF_ROLES})
+    ORDER BY usr.name
+    LIMIT $1
   `
-  const result = await db.query(query, [limit])
+  const result = await pgQuery(query, [limit])
   return result.rows
 }
 
@@ -660,16 +671,16 @@ export async function updateEmpleado(id: string, activo?: boolean) {
   if (activo === undefined) return null
 
   const query = `
-    UPDATE Empleado SET activo = $1 WHERE id = $2
+    UPDATE Usuario SET activo = $1 WHERE id = $2
     RETURNING id, user_id, activo, created_at
   `
-  const result = await db.query(query, [activo, id])
+  const result = await pgQuery(query, [activo, id])
   return result.rows[0] || null
 }
 
 export async function deleteEmpleado(id: string) {
-  const query = 'DELETE FROM Empleado WHERE id = $1 RETURNING id'
-  const result = await db.query(query, [id])
+  const query = 'DELETE FROM Usuario WHERE id = $1 RETURNING id'
+  const result = await pgQuery(query, [id])
   return result.rows[0] || null
 }
 
@@ -684,29 +695,29 @@ export async function createVenta(
   empleado_id: string | null = null,
 ) {
   const query = `
-    INSERT INTO Venta (user_id, id_cliente, empleado_id, total, fecha, estado)
+    INSERT INTO Venta (user_id, id_comprador, id_vendedor, total, fecha, estado)
     VALUES ($1, $2, $3, $4, NOW(), 'completada')
-    RETURNING id, user_id, id_cliente, empleado_id, total, fecha, estado
+    RETURNING id, user_id, id_comprador, id_vendedor, total, fecha, estado
   `
-  const result = await db.query(query, [user_id, id_cliente || null, empleado_id, total])
+  const result = await pgQuery(query, [user_id, id_cliente || null, empleado_id, total])
   return result.rows[0]
 }
 
 export async function getVenta(id: string) {
   const query = `
-    SELECT id, user_id, id_cliente, empleado_id, total, fecha, estado
+    SELECT id, user_id, id_comprador, id_vendedor, total, fecha, estado
     FROM Venta WHERE id = $1
   `
-  const result = await db.query(query, [id])
+  const result = await pgQuery(query, [id])
   return result.rows[0] || null
 }
 
 export async function getVentas(limit = 50) {
   const query = `
-    SELECT id, user_id, id_cliente, total, fecha, estado
+    SELECT id, user_id, id_comprador, id_vendedor, total, fecha, estado
     FROM Venta ORDER BY fecha DESC LIMIT $1
   `
-  const result = await db.query(query, [limit])
+  const result = await pgQuery(query, [limit])
   return result.rows
 }
 
@@ -727,16 +738,16 @@ export async function updateVenta(id: string, total?: number, estado?: string) {
 
   if (updates.length === 0) return null
 
-  query += ' ' + updates.join(', ') + ` WHERE id = $${params.length + 1} RETURNING id, user_id, id_cliente, total, fecha, estado`
+  query += ' ' + updates.join(', ') + ` WHERE id = $${params.length + 1} RETURNING id, user_id, id_comprador, id_vendedor, total, fecha, estado`
   params.push(id)
 
-  const result = await db.query(query, params)
+  const result = await pgQuery(query, params)
   return result.rows[0] || null
 }
 
 export async function deleteVenta(id: string) {
   const query = 'DELETE FROM Venta WHERE id = $1 RETURNING id'
-  const result = await db.query(query, [id])
+  const result = await pgQuery(query, [id])
   return result.rows[0] || null
 }
 
@@ -750,7 +761,7 @@ export async function createDetalleVenta(id_venta: string, id_producto: string, 
     VALUES ($1, $2, $3, $4)
     RETURNING id, id_venta, id_producto, cantidad, precio_unit, subtotal
   `
-  const result = await db.query(query, [id_venta, id_producto, cantidad, precio_unit])
+  const result = await pgQuery(query, [id_venta, id_producto, cantidad, precio_unit])
   return result.rows[0]
 }
 
@@ -759,7 +770,7 @@ export async function getDetalleVenta(id: string) {
     SELECT id, id_venta, id_producto, cantidad, precio_unit, subtotal
     FROM DetalleVenta WHERE id = $1
   `
-  const result = await db.query(query, [id])
+  const result = await pgQuery(query, [id])
   return result.rows[0] || null
 }
 
@@ -768,7 +779,7 @@ export async function getDetallesVenta(id_venta: string) {
     SELECT id, id_venta, id_producto, cantidad, precio_unit, subtotal
     FROM DetalleVenta WHERE id_venta = $1 ORDER BY id
   `
-  const result = await db.query(query, [id_venta])
+  const result = await pgQuery(query, [id_venta])
   return result.rows
 }
 
@@ -792,13 +803,13 @@ export async function updateDetalleVenta(id: string, cantidad?: number, precio_u
   query += ' ' + updates.join(', ') + ` WHERE id = $${params.length + 1} RETURNING id, id_venta, id_producto, cantidad, precio_unit, subtotal`
   params.push(id)
 
-  const result = await db.query(query, params)
+  const result = await pgQuery(query, params)
   return result.rows[0] || null
 }
 
 export async function deleteDetalleVenta(id: string) {
   const query = 'DELETE FROM DetalleVenta WHERE id = $1 RETURNING id'
-  const result = await db.query(query, [id])
+  const result = await pgQuery(query, [id])
   return result.rows[0] || null
 }
 
@@ -807,17 +818,17 @@ export async function deleteDetalleVenta(id: string) {
 // ============================================================
 
 export async function countProductosByCategoria(categoriaId: string) {
-  const r = await db.query('SELECT COUNT(*)::int AS n FROM Producto WHERE id_categoria = $1', [categoriaId])
+  const r = await pgQuery('SELECT COUNT(*)::int AS n FROM Producto WHERE id_categoria = $1', [categoriaId])
   return r.rows[0].n as number
 }
 
 export async function countProductosByProveedor(proveedorId: string) {
-  const r = await db.query('SELECT COUNT(*)::int AS n FROM Producto WHERE id_proveedor = $1', [proveedorId])
+  const r = await pgQuery('SELECT COUNT(*)::int AS n FROM Producto WHERE id_proveedor = $1', [proveedorId])
   return r.rows[0].n as number
 }
 
 export async function getVentasByClienteId(clienteId: string, limit = 200) {
-  const result = await db.query(
+  const result = await pgQuery(
     `
       SELECT
         v.id,
@@ -826,7 +837,7 @@ export async function getVentasByClienteId(clienteId: string, limit = 200) {
         v.estado,
         (SELECT COUNT(*)::int FROM DetalleVenta dv WHERE dv.id_venta = v.id) AS lineas
       FROM Venta v
-      WHERE v.id_cliente = $1
+      WHERE v.id_comprador = $1
       ORDER BY v.fecha DESC
       LIMIT $2
     `,
@@ -857,43 +868,41 @@ export async function getVentasListApi(fecha_inicio?: string | null, fecha_fin?:
       v.fecha,
       v.total,
       v.estado,
-      c.nombre AS cliente,
-      u.name AS empleado
+      comp.nombre AS cliente,
+      vend.nombre AS empleado
     FROM Venta v
-    LEFT JOIN Cliente c ON c.id = v.id_cliente
-    LEFT JOIN Empleado e ON e.id = v.empleado_id
-    LEFT JOIN "user" u ON u.id = e.user_id
+    LEFT JOIN Usuario comp ON comp.id = v.id_comprador
+    LEFT JOIN Usuario vend ON vend.id = v.id_vendedor
     ${where}
     ORDER BY v.fecha DESC
     LIMIT $${i}
   `
-  const result = await db.query(query, params)
+  const result = await pgQuery(query, params)
   return result.rows
 }
 
 export async function getVentaDetalleApi(ventaId: string) {
-  const head = await db.query(
+  const head = await pgQuery(
     `
       SELECT
         v.id,
         v.fecha,
         v.total,
         v.estado,
-        c.id AS cliente_id,
-        c.nombre AS cliente_nombre,
-        e.id AS empleado_id,
-        u.name AS empleado_nombre
+        comp.id AS cliente_id,
+        comp.nombre AS cliente_nombre,
+        vend.id AS empleado_id,
+        vend.nombre AS empleado_nombre
       FROM Venta v
-      LEFT JOIN Cliente c ON c.id = v.id_cliente
-      LEFT JOIN Empleado e ON e.id = v.empleado_id
-      LEFT JOIN "user" u ON u.id = e.user_id
+      LEFT JOIN Usuario comp ON comp.id = v.id_comprador
+      LEFT JOIN Usuario vend ON vend.id = v.id_vendedor
       WHERE v.id = $1
     `,
     [ventaId],
   )
   if (head.rowCount === 0) return null
   const h = head.rows[0]
-  const det = await db.query(
+  const det = await pgQuery(
     `
       SELECT dv.id_producto, p.nombre AS producto, dv.cantidad, dv.precio_unit, dv.subtotal
       FROM DetalleVenta dv
@@ -907,9 +916,7 @@ export async function getVentaDetalleApi(ventaId: string) {
 }
 
 export async function anularVentaTransaccional(ventaId: string) {
-  const client = await db.connect()
-  try {
-    await client.query('BEGIN')
+  return withPgTransaction(async (client) => {
     const v = await client.query('SELECT id, estado FROM Venta WHERE id = $1 FOR UPDATE', [ventaId])
     if (v.rowCount === 0) {
       throw Object.assign(new Error('Venta no encontrada'), { code: 'NOT_FOUND' })
@@ -928,13 +935,7 @@ export async function anularVentaTransaccional(ventaId: string) {
       ])
     }
     await client.query(`UPDATE Venta SET estado = 'anulada' WHERE id = $1`, [ventaId])
-    await client.query('COMMIT')
-  } catch (e) {
-    await client.query('ROLLBACK')
-    throw e
-  } finally {
-    client.release()
-  }
+  })
 }
 
 export async function getProductosListApi(opts: {
@@ -982,12 +983,12 @@ export async function getProductosListApi(opts: {
     ORDER BY p.nombre
     LIMIT $${params.length}
   `
-  const result = await db.query(query, params)
+  const result = await pgQuery(query, params)
   return result.rows
 }
 
 export async function getProductoEnriquecido(id: string) {
-  const result = await db.query(
+  const result = await pgQuery(
     `
       SELECT
         p.id,
@@ -1012,7 +1013,7 @@ export async function getProductoEnriquecido(id: string) {
 }
 
 export async function softDeleteProducto(id: string) {
-  const result = await db.query(
+  const result = await pgQuery(
     'UPDATE Producto SET activo = FALSE WHERE id = $1 RETURNING id',
     [id],
   )
@@ -1022,13 +1023,13 @@ export async function softDeleteProducto(id: string) {
 export async function getClienteConStats(id: string) {
   const base = await getCliente(id)
   if (!base) return null
-  const stats = await db.query(
+  const stats = await pgQuery(
     `
       SELECT
         COUNT(*)::int AS total_compras,
         COALESCE(SUM(total), 0) AS monto_total
       FROM Venta
-      WHERE id_cliente = $1 AND estado = 'completada'
+      WHERE id_comprador = $1 AND estado = 'completada'
     `,
     [id],
   )
@@ -1042,7 +1043,7 @@ export async function getClienteConStats(id: string) {
 
 export async function getReporteVentasDelDia(fecha?: string | null) {
   const day = fecha || new Date().toISOString().slice(0, 10)
-  const list = await db.query(
+  const list = await pgQuery(
     `
       SELECT venta_id, fecha, total, estado, cliente, empleado, producto, cantidad, precio_unit, subtotal, categoria
       FROM vista_ventas_completa
@@ -1051,7 +1052,7 @@ export async function getReporteVentasDelDia(fecha?: string | null) {
     `,
     [day],
   )
-  const agg = await db.query(
+  const agg = await pgQuery(
     `
       SELECT
         COUNT(DISTINCT venta_id)::int AS total_ventas,
@@ -1111,12 +1112,12 @@ export async function getProductosMasVendidosApi(fecha_inicio?: string | null, f
     ORDER BY rank
     LIMIT 50
   `
-  const result = await db.query(query, params)
+  const result = await pgQuery(query, params)
   return result.rows
 }
 
 export async function getStockDisponibleApi() {
-  const result = await db.query(`
+  const result = await pgQuery(`
     SELECT id, nombre AS producto, stock, (stock < 20) AS alerta
     FROM Producto
     WHERE activo = TRUE
@@ -1126,7 +1127,7 @@ export async function getStockDisponibleApi() {
 }
 
 export async function getVentasPorCategoriaReporteApi() {
-  const result = await db.query(`
+  const result = await pgQuery(`
     SELECT
       cat.nombre AS categoria,
       SUM(dv.cantidad)::bigint AS total_vendido,
@@ -1143,28 +1144,54 @@ export async function getVentasPorCategoriaReporteApi() {
 }
 
 export async function getClientesFrecuentesApi() {
-  const result = await db.query(`
-    SELECT c.id, c.nombre,
+  const result = await pgQuery(`
+    SELECT u.id, u.nombre,
            COUNT(v.id)::int AS total_compras,
            COALESCE(SUM(v.total), 0) AS monto_total
-    FROM Cliente c
-    JOIN Venta v ON v.id_cliente = c.id AND v.estado = 'completada'
-    WHERE c.id IN (
-      SELECT id_cliente
+    FROM Usuario u
+    JOIN Venta v ON v.id_comprador = u.id AND v.estado = 'completada'
+    WHERE u.id IN (
+      SELECT id_comprador
       FROM Venta
-      WHERE id_cliente IS NOT NULL AND estado = 'completada'
-      GROUP BY id_cliente
+      WHERE id_comprador IS NOT NULL AND estado = 'completada'
+      GROUP BY id_comprador
       HAVING COUNT(*) > 3
     )
-    GROUP BY c.id, c.nombre
+    GROUP BY u.id, u.nombre
     ORDER BY total_compras DESC
   `)
   return result.rows
 }
 
 export async function findUserByEmail(email: string) {
-  const r = await db.query('SELECT id FROM "user" WHERE LOWER(email) = LOWER($1)', [email])
+  const r = await pgQuery('SELECT id FROM "user" WHERE LOWER(email) = LOWER($1)', [email])
   return r.rows[0]?.id as string | undefined
+}
+
+export async function countSuperadmins(): Promise<number> {
+  const r = await pgQuery(`SELECT COUNT(*)::int AS n FROM "user" WHERE rol = 'superadmin'`)
+  return Number(r.rows[0]?.n ?? 0)
+}
+
+export async function getSetupStatus() {
+  const superadminCount = await countSuperadmins()
+  return { needsBootstrap: superadminCount === 0, superadminCount }
+}
+
+/** Primer superadmin (instalación vacía). Solo cuando no hay ningún superadmin en BD. */
+export async function bootstrapSuperadmin(input: { nombre: string; email: string; password: string }) {
+  if ((await countSuperadmins()) > 0) {
+    throw Object.assign(new Error('Ya existe un superadministrador en el sistema'), { code: 'BOOTSTRAP_DONE' })
+  }
+  if (input.password.length < 8) {
+    throw Object.assign(new Error('La contraseña debe tener al menos 8 caracteres'), { code: 'INVALID' })
+  }
+  return createUserAccountAndEmpleado({
+    nombre: input.nombre.trim(),
+    email: input.email.trim(),
+    password: input.password,
+    rol: 'superadmin',
+  })
 }
 
 export async function createUserAccountAndEmpleado(input: {
@@ -1173,42 +1200,40 @@ export async function createUserAccountAndEmpleado(input: {
   password: string
   rol: string
 }) {
-  const existing = await findUserByEmail(input.email)
-  if (existing) {
-    throw Object.assign(new Error('El email ya está registrado'), { code: 'DUPLICATE' })
-  }
-  const userId = `usr_${uuidv4().replace(/-/g, '').slice(0, 12)}`
-  const accountId = `acc_${uuidv4().replace(/-/g, '').slice(0, 12)}`
-  const hashed = await hashPassword(input.password)
-  const client = await db.connect()
-  try {
-    await client.query('BEGIN')
-    await client.query(
-      `
-        INSERT INTO "user" (id, name, email, "emailVerified", image, "createdAt", "updatedAt", rol)
-        VALUES ($1, $2, $3, FALSE, NULL, NOW(), NOW(), $4)
-      `,
-      [userId, input.nombre, input.email.toLowerCase(), input.rol],
-    )
-    await client.query(
-      `
-        INSERT INTO account (id, "accountId", "providerId", "userId", password, "createdAt", "updatedAt")
-        VALUES ($1, $2, 'credential', $3, $4, NOW(), NOW())
-      `,
-      [accountId, input.email.toLowerCase(), userId, hashed],
-    )
-    await client.query(
-      `INSERT INTO Empleado (user_id, activo, created_at) VALUES ($1, TRUE, NOW())`,
-      [userId],
-    )
-    await client.query('COMMIT')
+  return runWithoutDbRole(async () => {
+    const existing = await findUserByEmail(input.email)
+    if (existing) {
+      throw Object.assign(new Error('El email ya está registrado'), { code: 'DUPLICATE' })
+    }
+    const userId = `usr_${uuidv4().replace(/-/g, '').slice(0, 12)}`
+    const accountId = `acc_${uuidv4().replace(/-/g, '').slice(0, 12)}`
+    const hashed = await hashPassword(input.password)
+    await withPgTransaction(async (client) => {
+      await client.query(
+        `
+          INSERT INTO "user" (id, name, email, "emailVerified", image, "createdAt", "updatedAt", rol)
+          VALUES ($1, $2, $3, FALSE, NULL, NOW(), NOW(), $4)
+        `,
+        [userId, input.nombre, input.email.toLowerCase(), input.rol],
+      )
+      await client.query(
+        `
+          INSERT INTO account (id, "accountId", "providerId", "userId", password, "createdAt", "updatedAt")
+          VALUES ($1, $2, 'credential', $3, $4, NOW(), NOW())
+        `,
+        [accountId, input.email.toLowerCase(), userId, hashed],
+      )
+    })
+    await runWithDbRole('admin', async () => {
+      await pgQuery(
+        `INSERT INTO Usuario (user_id, nombre, email, activo, created_at)
+         VALUES ($1, $2, $3, TRUE, NOW())
+         ON CONFLICT (user_id) DO NOTHING`,
+        [userId, input.nombre, input.email.toLowerCase()],
+      )
+    })
     return { user_id: userId, nombre: input.nombre, rol: input.rol }
-  } catch (e) {
-    await client.query('ROLLBACK')
-    throw e
-  } finally {
-    client.release()
-  }
+  })
 }
 
 export async function updateUserEmpleadoProfile(userId: string, nombre?: string, rol?: string) {
@@ -1225,32 +1250,32 @@ export async function updateUserEmpleadoProfile(userId: string, nombre?: string,
   if (parts.length === 0) return null
   params.push(userId)
   const q = `UPDATE "user" SET ${parts.join(', ')}, "updatedAt" = NOW() WHERE id = $${params.length} RETURNING id, name, rol`
-  const r = await db.query(q, params)
+  const r = await pgQuery(q, params)
   return r.rows[0] || null
 }
 
 export async function deactivateEmpleadoByUserId(userId: string) {
-  const r = await db.query(
-    'UPDATE Empleado SET activo = FALSE WHERE user_id = $1 RETURNING id',
+  const r = await pgQuery(
+    'UPDATE Usuario SET activo = FALSE WHERE user_id = $1 RETURNING id',
     [userId],
   )
   return r.rows[0] || null
 }
 
 export async function getEmpleadoByUserId(userId: string) {
-  const r = await db.query(
+  const r = await pgQuery(
     `
-      SELECT e.id, e.user_id, e.activo, e.created_at, u.name, u.email, u.rol
-      FROM Empleado e
-      JOIN "user" u ON u.id = e.user_id
-      WHERE e.user_id = $1
+      SELECT u.id, u.user_id, u.activo, u.created_at, usr.name, usr.email, usr.rol
+      FROM Usuario u
+      JOIN "user" usr ON usr.id = u.user_id
+      WHERE u.user_id = $1 AND usr.rol IN (${SQL_STAFF_ROLES})
     `,
     [userId],
   )
   return r.rows[0] || null
 }
 
-/** Vincula la sesión de personal (admin/cajero) a un registro Empleado para ventas en POS. */
+/** Vincula la sesión de personal a un registro Usuario (vendedor) para ventas en POS. */
 export async function getOrCreateEmpleadoForUser(userId: string) {
   const existing = await getEmpleadoByUserId(userId)
   if (existing) return existing

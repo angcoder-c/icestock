@@ -201,6 +201,68 @@ export function useProveedoresQuery(enabled: boolean) {
   })
 }
 
+export function useCreateProveedorMutation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: {
+      nombre: string
+      telefono?: string | null
+      email?: string | null
+      direccion?: string | null
+    }) =>
+      apiFetch<{ id: string; nombre: string }>('/api/proveedores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nombre: body.nombre,
+          telefono: body.telefono ?? undefined,
+          email: body.email ?? undefined,
+          direccion: body.direccion ?? undefined,
+        }),
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['proveedores'] })
+    },
+  })
+}
+
+export function useUpdateProveedorMutation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: {
+      id: string
+      nombre?: string
+      telefono?: string | null
+      email?: string | null
+      direccion?: string | null
+    }) =>
+      apiFetch<ProveedorApi>(`/api/proveedores/${input.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nombre: input.nombre,
+          telefono: input.telefono,
+          email: input.email,
+          direccion: input.direccion,
+        }),
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['proveedores'] })
+    },
+  })
+}
+
+export function useDeleteProveedorMutation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<{ mensaje: string }>(`/api/proveedores/${id}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['proveedores'] })
+    },
+  })
+}
+
 export function useCreateProductoMutation() {
   const qc = useQueryClient()
   return useMutation({
@@ -346,6 +408,80 @@ export type UploadImagenResponse = {
   url: string
   public_id: string
   producto?: ProductoApi
+}
+
+export type EmpleadoApi = {
+  id: number
+  user_id: string
+  nombre: string
+  email: string
+  rol: string
+  activo: boolean
+  creado_en: string
+}
+
+export type SetupStatusApi = {
+  needsBootstrap: boolean
+  superadminCount: number
+  demoAccounts: { rol: string; email: string; label: string }[]
+  demoPasswordHint: string
+}
+
+export function useSetupStatusQuery() {
+  return useQuery({
+    queryKey: ['setup', 'status'],
+    queryFn: () => apiFetch<SetupStatusApi>('/api/setup/status'),
+    staleTime: 60_000,
+  })
+}
+
+export function useBootstrapSuperadminMutation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { nombre: string; email: string; password: string }) =>
+      apiFetch<{ user_id: string; nombre: string; rol: string; mensaje: string }>('/api/setup/bootstrap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['setup', 'status'] })
+    },
+  })
+}
+
+export function useEmpleadosQuery(enabled: boolean) {
+  return useQuery({
+    queryKey: ['empleados'],
+    queryFn: () => apiFetch<EmpleadoApi[]>('/api/empleados'),
+    enabled,
+  })
+}
+
+export function useCreateEmpleadoMutation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { nombre: string; email: string; password: string; rol?: string }) =>
+      apiFetch<{ user_id: string; nombre: string; rol: string }>('/api/empleados', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['empleados'] })
+    },
+  })
+}
+
+export function useDeactivateEmpleadoMutation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (userId: string) =>
+      apiFetch<{ mensaje: string }>(`/api/empleados/${userId}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['empleados'] })
+    },
+  })
 }
 
 export function useUploadProductImageMutation() {
