@@ -91,11 +91,11 @@ Con clave surrogate en `DetalleVenta`, los atributos `cantidad`, `precio_unit` y
 | Cliente vs usuario web                             | Compras de mostrador vs cuenta app                                | `Cliente` separado; usuarios con `rol = 'cliente'` se vinculan por email en aplicación |
 
 
-### Tabla `Empleado` como entidad puente
+### Tabla `Usuario` unificada
 
-- **PK:** `Empleado.id` (UUID).
-- **FK:** `user_id` UNIQUE → `"user".id`.
-- Permite que `Venta.empleado_id` sea **NULL** cuando el cliente compra solo (autocompra en tienda); el auditoría de sesión sigue en `Venta.user_id`.
+- **PK:** `Usuario.id` (UUID).
+- **FK:** `user_id` UNIQUE opcional → `"user".id` (NULL = mostrador sin cuenta web).
+- `Venta.id_vendedor` puede ser **NULL** en autocompra; `Venta.id_comprador` identifica al comprador; `Venta.user_id` audita la sesión Better Auth.
 
 ---
 
@@ -106,7 +106,7 @@ Con clave surrogate en `DetalleVenta`, los atributos `cantidad`, `precio_unit` y
 
 | Tabla          | Rol                                       |
 | -------------- | ----------------------------------------- |
-| `user`         | Cuenta (admin / cajero / cliente)         |
+| `user`         | Cuenta (`cliente`, `cajero`, `analista`, `admin`, `superadmin`) |
 | `session`      | Sesión activa                             |
 | `account`      | Proveedor de credenciales (password hash) |
 | `Verification` | Tokens de verificación                    |
@@ -120,9 +120,8 @@ Con clave surrogate en `DetalleVenta`, los atributos `cantidad`, `precio_unit` y
 | `Categoria`    | Clasificación de productos                                                      |
 | `Proveedor`    | Origen / suministro                                                             |
 | `Producto`     | Inventario y precio                                                             |
-| `Cliente`      | Comprador (mostrador o vinculado por email)                                     |
-| `Empleado`     | Personal con venta en POS (`user_id` único)                                     |
-| `Venta`        | Cabecera: cliente opcional, usuario de sesión, empleado opcional, total, estado |
+| `Usuario`      | Compradores y vendedores; `user_id` opcional (Better Auth)                        |
+| `Venta`        | Cabecera: `id_comprador`, `id_vendedor`, `user_id`, total, estado                |
 | `DetalleVenta` | Líneas: producto, cantidad, precio unitario, subtotal                           |
 
 

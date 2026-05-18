@@ -19,7 +19,13 @@ CREATE TABLE "user" (
     "createdAt"     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     "updatedAt"     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     "rol"           TEXT NOT NULL DEFAULT 'cajero'
-                    CHECK ("rol" IN ('admin', 'cajero', 'cliente'))
+                    CHECK ("rol" IN (
+                        'cliente',
+                        'cajero',
+                        'analista',
+                        'admin',
+                        'superadmin'
+                    ))
 );
 
 CREATE TABLE session (
@@ -89,30 +95,31 @@ CREATE TABLE Producto (
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE Empleado (
+-- Personas del negocio (compradores, vendedores, mostrador sin cuenta web).
+-- user_id NULL = cliente de mostrador sin login; NOT NULL = cuenta Better Auth vinculada.
+CREATE TABLE Usuario (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id    TEXT NOT NULL UNIQUE REFERENCES "user"("id") ON DELETE CASCADE,
+    user_id    TEXT UNIQUE REFERENCES "user"("id") ON DELETE SET NULL,
+    nombre     VARCHAR(150) NOT NULL,
+    email      VARCHAR(150),
+    telefono   VARCHAR(20),
     activo     BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE Cliente (
-    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    nombre     VARCHAR(150) NOT NULL,
-    email      VARCHAR(150) UNIQUE,
-    telefono   VARCHAR(20),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+CREATE UNIQUE INDEX idx_usuario_email_lower
+    ON Usuario (LOWER(TRIM(email)))
+    WHERE email IS NOT NULL AND TRIM(email) <> '';
 
 CREATE TABLE Venta (
-    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    id_cliente   UUID REFERENCES Cliente(id),
-    user_id      TEXT NOT NULL REFERENCES "user"("id"),
-    empleado_id  UUID REFERENCES Empleado(id),
-    total        NUMERIC(10, 2) NOT NULL DEFAULT 0,
-    fecha        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    estado       VARCHAR(20) NOT NULL DEFAULT 'completada'
-                 CHECK (estado IN ('completada', 'anulada'))
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id_comprador  UUID REFERENCES Usuario(id),
+    id_vendedor   UUID REFERENCES Usuario(id),
+    user_id       TEXT NOT NULL REFERENCES "user"("id"),
+    total         NUMERIC(10, 2) NOT NULL DEFAULT 0,
+    fecha         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    estado        VARCHAR(20) NOT NULL DEFAULT 'completada'
+                  CHECK (estado IN ('completada', 'anulada'))
 );
 
 CREATE TABLE DetalleVenta (
@@ -131,14 +138,15 @@ CREATE TABLE DetalleVenta (
 CREATE INDEX idx_session_userId    ON session("userId");
 CREATE INDEX idx_session_token      ON session("token");
 CREATE INDEX idx_account_userId     ON account("userId");
-CREATE INDEX idx_empleado_user_id   ON Empleado(user_id);
-CREATE INDEX idx_producto_categoria ON Producto(id_categoria);
-CREATE INDEX idx_producto_proveedor ON Producto(id_proveedor);
-CREATE INDEX idx_venta_fecha        ON Venta(fecha);
-CREATE INDEX idx_venta_user_id       ON Venta(user_id);
-CREATE INDEX idx_venta_empleado_id   ON Venta(empleado_id);
-CREATE INDEX idx_detalleventa_venta ON DetalleVenta(id_venta);
-CREATE INDEX idx_detalleventa_prod  ON DetalleVenta(id_producto);
+CREATE INDEX idx_usuario_user_id      ON Usuario(user_id);
+CREATE INDEX idx_producto_categoria   ON Producto(id_categoria);
+CREATE INDEX idx_producto_proveedor   ON Producto(id_proveedor);
+CREATE INDEX idx_venta_fecha          ON Venta(fecha);
+CREATE INDEX idx_venta_user_id        ON Venta(user_id);
+CREATE INDEX idx_venta_comprador      ON Venta(id_comprador);
+CREATE INDEX idx_venta_vendedor       ON Venta(id_vendedor);
+CREATE INDEX idx_detalleventa_venta   ON DetalleVenta(id_venta);
+CREATE INDEX idx_detalleventa_prod    ON DetalleVenta(id_producto);
 
 CREATE VIEW vista_ventas_completa AS
 SELECT
@@ -146,21 +154,38 @@ SELECT
     v.fecha,
     v.total,
     v.estado,
-    c.nombre             AS cliente,
-    u."name"             AS empleado,
-    u."rol"              AS rol_empleado,
+    comp.nombre          AS cliente,
+    vend.nombre          AS empleado,
+    vu."rol"             AS rol_empleado,
     p.nombre             AS producto,
     dv.cantidad,
     dv.precio_unit,
     dv.subtotal,
     cat.nombre           AS categoria
 FROM Venta v
-LEFT  JOIN Cliente       c   ON c.id     = v.id_cliente
-LEFT  JOIN Empleado      e   ON e.id     = v.empleado_id
-LEFT  JOIN "user"        u   ON u."id"   = e.user_id
-JOIN  DetalleVenta       dv  ON dv.id_venta  = v.id
-JOIN  Producto          p   ON p.id     = dv.id_producto
-JOIN  Categoria         cat ON cat.id   = p.id_categoria;
+LEFT  JOIN Usuario       comp ON comp.id = v.id_comprador
+LEFT  JOIN Usuario       vend ON vend.id = v.id_vendedor
+LEFT  JOIN "user"        vu   ON vu."id" = vend.user_id
+JOIN  DetalleVenta       dv   ON dv.id_venta = v.id
+JOIN  Producto           p    ON p.id = dv.id_producto
+JOIN  Categoria          cat  ON cat.id = p.id_categoria;
+
+-- Métricas por vendedor (portal admin / analista).
+CREATE VIEW vista_metricas_empleado AS
+SELECT
+    vend.id                              AS vendedor_id,
+    vend.nombre                          AS vendedor,
+    vu."rol"                             AS rol_vendedor,
+    COUNT(DISTINCT v.id)::int            AS total_ventas,
+    COALESCE(SUM(v.total), 0)            AS monto_total
+FROM Usuario vend
+LEFT JOIN "user" vu ON vu."id" = vend.user_id
+LEFT JOIN Venta v
+       ON v.id_vendedor = vend.id
+      AND v.estado = 'completada'
+WHERE vend.user_id IS NOT NULL
+  AND vu."rol" IN ('cajero', 'analista', 'admin', 'superadmin')
+GROUP BY vend.id, vend.nombre, vu."rol";
 
 -- ============================================================
 --  DATOS DE PRUEBA (UUIDs fijos para FK en seeds)
@@ -246,21 +271,21 @@ INSERT INTO "user" (
     rol
 )
 VALUES
-('usr001','Admin General','admin1@heladeria.com',TRUE,'admin'),
-('usr002','María López','maria@heladeria.com',TRUE,'cajero'),
-('usr003','Carlos Pérez','carlos@heladeria.com',TRUE,'cajero'),
-('usr004','Ana García','ana@heladeria.com',TRUE,'cajero'),
-('usr005','Luis Torres','luis@heladeria.com',TRUE,'cajero'),
-('usr006','Andrea Méndez','andrea@heladeria.com',TRUE,'cajero'),
-('usr007','José Ramírez','jose@heladeria.com',TRUE,'cajero'),
-('usr008','Patricia Morales','patricia@heladeria.com',TRUE,'cajero'),
-('usr009','Kevin Díaz','kevin@heladeria.com',TRUE,'cajero'),
-('usr010','Fernanda Ruiz','fernanda@heladeria.com',TRUE,'cajero'),
-('usr011','Miguel Castro','miguel@heladeria.com',TRUE,'cajero'),
-('usr012','Daniela Gómez','daniela@heladeria.com',TRUE,'cajero'),
-('usr013','Oscar Fuentes','oscar@heladeria.com',TRUE,'cajero'),
-('usr014','Lucía Herrera','lucia@heladeria.com',TRUE,'cajero'),
-('usr015','Ricardo Soto','ricardo@heladeria.com',TRUE,'cajero'),
+('usr001','Super Admin','super@heladeria.com',TRUE,'superadmin'),
+('usr002','Admin General','admin1@heladeria.com',TRUE,'admin'),
+('usr003','Ana Analista','analista@heladeria.com',TRUE,'analista'),
+('usr004','María López','maria@heladeria.com',TRUE,'cajero'),
+('usr005','Carlos Pérez','carlos@heladeria.com',TRUE,'cajero'),
+('usr006','Ana García','ana@heladeria.com',TRUE,'cajero'),
+('usr007','Luis Torres','luis@heladeria.com',TRUE,'cajero'),
+('usr008','Andrea Méndez','andrea@heladeria.com',TRUE,'cajero'),
+('usr009','José Ramírez','jose@heladeria.com',TRUE,'cajero'),
+('usr010','Patricia Morales','patricia@heladeria.com',TRUE,'cajero'),
+('usr011','Kevin Díaz','kevin@heladeria.com',TRUE,'cajero'),
+('usr012','Fernanda Ruiz','fernanda@heladeria.com',TRUE,'cajero'),
+('usr013','Miguel Castro','miguel@heladeria.com',TRUE,'cajero'),
+('usr014','Daniela Gómez','daniela@heladeria.com',TRUE,'cajero'),
+('usr015','Oscar Fuentes','oscar@heladeria.com',TRUE,'cajero'),
 ('usr016','Valeria Cruz','valeria@heladeria.com',TRUE,'cliente'),
 ('usr017','Pedro Alvarado','pedro@heladeria.com',TRUE,'cliente'),
 ('usr018','Sofía Castillo','sofia@heladeria.com',TRUE,'cliente'),
@@ -273,52 +298,33 @@ VALUES
 ('usr025','Tomás Jiménez','tomas@heladeria.com',TRUE,'cliente');
 
 -- ============================================================
--- EMPLEADOS (25)
+-- USUARIOS (cuentas Better Auth + mostrador sin login)
 -- ============================================================
 
-INSERT INTO Empleado (id, user_id, activo)
-SELECT
-    gen_random_uuid(),
-    id,
-    TRUE
+INSERT INTO Usuario (id, user_id, nombre, email, telefono, activo)
+SELECT gen_random_uuid(), id, name, email, NULL, TRUE
 FROM "user";
 
--- ============================================================
--- CLIENTES (25)
--- ============================================================
-
-INSERT INTO Cliente (
-    id,
-    nombre,
-    email,
-    telefono
-)
+INSERT INTO Usuario (id, user_id, nombre, email, telefono, activo)
 VALUES
-(gen_random_uuid(),'Juan Ramírez','juan@mail.com','5500-0001'),
-(gen_random_uuid(),'Sofía Castillo','sofia@mail.com','5500-0002'),
-(gen_random_uuid(),'Pedro Alvarado','pedro@mail.com','5500-0003'),
-(gen_random_uuid(),'Laura Morales','laura@mail.com','5500-0004'),
-(gen_random_uuid(),'Diego Fuentes','diego@mail.com','5500-0005'),
-(gen_random_uuid(),'Valeria Cruz','valeria@mail.com','5500-0006'),
-(gen_random_uuid(),'Roberto Mejía','roberto@mail.com','5500-0007'),
-(gen_random_uuid(),'Claudia Ríos','claudia@mail.com','5500-0008'),
-(gen_random_uuid(),'Fernando López','fernando@mail.com','5500-0009'),
-(gen_random_uuid(),'Gabriela Sosa','gabriela@mail.com','5500-0010'),
-(gen_random_uuid(),'Héctor Vásquez','hector@mail.com','5500-0011'),
-(gen_random_uuid(),'Irene Ramos','irene@mail.com','5500-0012'),
-(gen_random_uuid(),'Javier Ortiz','javier@mail.com','5500-0013'),
-(gen_random_uuid(),'Karla Nájera','karla@mail.com','5500-0014'),
-(gen_random_uuid(),'Miguel Ángel','miguel@mail.com','5500-0015'),
-(gen_random_uuid(),'Nancy Estrada','nancy@mail.com','5500-0016'),
-(gen_random_uuid(),'Oscar Pinto','oscar@mail.com','5500-0017'),
-(gen_random_uuid(),'Patricia Lima','patricia@mail.com','5500-0018'),
-(gen_random_uuid(),'Quetzal Ajú','quetzal@mail.com','5500-0019'),
-(gen_random_uuid(),'Rodrigo Caal','rodrigo@mail.com','5500-0020'),
-(gen_random_uuid(),'Sandra Tzul','sandra@mail.com','5500-0021'),
-(gen_random_uuid(),'Tomás Jiménez','tomas@mail.com','5500-0022'),
-(gen_random_uuid(),'Úrsula Batz','ursula@mail.com','5500-0023'),
-(gen_random_uuid(),'Victor Choc','victor@mail.com','5500-0024'),
-(gen_random_uuid(),'Wendy Cú','wendy@mail.com','5500-0025');
+(gen_random_uuid(), NULL, 'Juan Ramírez', 'juan@mail.com', '5500-0001', TRUE),
+(gen_random_uuid(), NULL, 'Laura Morales', 'laura@mail.com', '5500-0004', TRUE),
+(gen_random_uuid(), NULL, 'Roberto Mejía', 'roberto@mail.com', '5500-0007', TRUE),
+(gen_random_uuid(), NULL, 'Gabriela Sosa', 'gabriela@mail.com', '5500-0010', TRUE),
+(gen_random_uuid(), NULL, 'Héctor Vásquez', 'hector@mail.com', '5500-0011', TRUE),
+(gen_random_uuid(), NULL, 'Irene Ramos', 'irene@mail.com', '5500-0012', TRUE),
+(gen_random_uuid(), NULL, 'Javier Ortiz', 'javier@mail.com', '5500-0013', TRUE),
+(gen_random_uuid(), NULL, 'Karla Nájera', 'karla@mail.com', '5500-0014', TRUE),
+(gen_random_uuid(), NULL, 'Miguel Ángel', 'miguel@mail.com', '5500-0015', TRUE),
+(gen_random_uuid(), NULL, 'Nancy Estrada', 'nancy@mail.com', '5500-0016', TRUE),
+(gen_random_uuid(), NULL, 'Oscar Pinto', 'oscar@mail.com', '5500-0017', TRUE),
+(gen_random_uuid(), NULL, 'Patricia Lima', 'patricia@mail.com', '5500-0018', TRUE),
+(gen_random_uuid(), NULL, 'Quetzal Ajú', 'quetzal@mail.com', '5500-0019', TRUE),
+(gen_random_uuid(), NULL, 'Rodrigo Caal', 'rodrigo@mail.com', '5500-0020', TRUE),
+(gen_random_uuid(), NULL, 'Sandra Tzul', 'sandra@mail.com', '5500-0021', TRUE),
+(gen_random_uuid(), NULL, 'Úrsula Batz', 'ursula@mail.com', '5500-0023', TRUE),
+(gen_random_uuid(), NULL, 'Victor Choc', 'victor@mail.com', '5500-0024', TRUE),
+(gen_random_uuid(), NULL, 'Wendy Cú', 'wendy@mail.com', '5500-0025', TRUE);
 
 -- ============================================================
 -- PRODUCTOS (25)
@@ -378,20 +384,27 @@ VALUES
 
 INSERT INTO Venta (
     id,
-    id_cliente,
+    id_comprador,
+    id_vendedor,
     user_id,
-    empleado_id,
     total,
     estado
 )
 SELECT
     gen_random_uuid(),
-    (SELECT id FROM Cliente ORDER BY random() LIMIT 1),
-    (SELECT id FROM "user" ORDER BY random() LIMIT 1),
-    (SELECT id FROM Empleado ORDER BY random() LIMIT 1),
-    round((random() * 200 + 20)::numeric,2),
+    (SELECT id FROM Usuario ORDER BY random() LIMIT 1),
+    (
+        SELECT u.id
+        FROM Usuario u
+        JOIN "user" au ON au.id = u.user_id
+        WHERE au."rol" IN ('cajero', 'admin', 'superadmin')
+        ORDER BY random()
+        LIMIT 1
+    ),
+    (SELECT id FROM "user" WHERE "rol" IN ('cajero', 'admin', 'superadmin') ORDER BY random() LIMIT 1),
+    round((random() * 200 + 20)::numeric, 2),
     'completada'
-FROM generate_series(1,25);
+FROM generate_series(1, 25);
 
 -- ============================================================
 -- DETALLE VENTA (25)
@@ -417,10 +430,10 @@ FROM generate_series(1,25);
 -- ============================================================
 
 CREATE OR REPLACE FUNCTION registrar_venta(
-    p_userId      TEXT,
-    p_idCliente   UUID,
-    p_empleadoId  UUID,
-    p_items       JSONB
+    p_userId       TEXT,
+    p_idComprador  UUID,
+    p_idVendedor   UUID,
+    p_items        JSONB
 )
 RETURNS UUID
 LANGUAGE plpgsql AS $$
@@ -454,8 +467,8 @@ BEGIN
         i := i + 1;
     END LOOP;
 
-    INSERT INTO Venta (user_id, id_cliente, empleado_id, total)
-    VALUES (p_userId, p_idCliente, p_empleadoId, 0)
+    INSERT INTO Venta (user_id, id_comprador, id_vendedor, total)
+    VALUES (p_userId, p_idComprador, p_idVendedor, 0)
     RETURNING id INTO v_id;
 
     i := 0;
