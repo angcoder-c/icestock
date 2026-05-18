@@ -1,7 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { fmtMoney, json } from '#/lib/api/http'
-import { getSessionUser } from '#/lib/api/session'
+import { requireAuthAndPermission } from '#/lib/api/guard'
+import { withSessionDbRole } from '#/lib/api/with-db-role'
 import * as db from '#/lib/db'
 import { isUuid } from '#/lib/is-uuid'
 
@@ -9,10 +10,12 @@ export const Route = createFileRoute('/api/ventas/$id')({
   server: {
     handlers: {
       GET: async ({ request, params }) => {
-        const user = await getSessionUser(request)
-        if (!user) return json({ error: 'No autenticado' }, 401)
+        const gate = await requireAuthAndPermission(request, 'sales:read')
+        if ('response' in gate) return gate.response
+        const user = gate.user
         const id = params.id
         if (!isUuid(id)) return json({ error: 'ID inválido' }, 400)
+        return withSessionDbRole(user, async () => {
         const data = await db.getVentaDetalleApi(id)
         if (!data) return json({ error: 'Venta no encontrada' }, 404)
         const h = data.head as {
@@ -45,18 +48,19 @@ export const Route = createFileRoute('/api/ventas/$id')({
             }),
           ),
         })
+        })
       },
       DELETE: async ({ request, params }) => {
-        const user = await getSessionUser(request)
-        if (!user) return json({ error: 'No autenticado' }, 401)
-        if (user.rol !== 'admin') {
-          return json({ error: 'Solo un administrador puede anular ventas' }, 403)
-        }
+        const gate = await requireAuthAndPermission(request, 'sales:void')
+        if ('response' in gate) return gate.response
+        const user = gate.user
         const id = params.id
         if (!isUuid(id)) return json({ error: 'ID inválido' }, 400)
         try {
-          await db.anularVentaTransaccional(id)
-          return json({ mensaje: 'Venta anulada y stock restaurado' })
+          return await withSessionDbRole(user, async () => {
+            await db.anularVentaTransaccional(id)
+            return json({ mensaje: 'Venta anulada y stock restaurado' })
+          })
         } catch (e) {
           const err = e as { code?: string; message?: string }
           if (err.code === 'NOT_FOUND') return json({ error: 'Venta no encontrada' }, 404)

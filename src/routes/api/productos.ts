@@ -1,7 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { json, mapProductoApi } from '#/lib/api/http'
+import { requireAuthAndPermission } from '#/lib/api/guard'
+import { can } from '#/lib/api/permissions'
 import { getSessionUser } from '#/lib/api/session'
+import { withRequestDbRole, withSessionDbRole } from '#/lib/api/with-db-role'
 import { isUuid } from '#/lib/is-uuid'
 import * as db from '#/lib/db'
 
@@ -19,36 +22,28 @@ export const Route = createFileRoute('/api/productos')({
         }
         const search = url.searchParams.get('search')
 
-        if (!user) {
-          try {
-            const rows = await db.getProductosListApi({
-              categoria: catId,
-              search: search || null,
-              stock_bajo: false,
-              incluir_inactivos: false,
-              limit: 200,
-            })
-            return json(rows.map((r) => mapProductoApi(r as never)))
-          } catch (e) {
-            console.error('[GET /api/productos público]', e)
-            return json(
-              { error: e instanceof Error ? e.message : 'Error al listar productos' },
-              500,
-            )
-          }
-        }
-
         const stock_bajo = url.searchParams.get('stock_bajo')
         const incluir = url.searchParams.get('incluir_inactivos')
+        const wantsStaffFilters =
+          stock_bajo === 'true' || incluir === 'true'
+        if (user && wantsStaffFilters && !can(user, 'sales:read') && !can(user, 'catalog:write')) {
+          return json({ error: 'Sin permiso para filtros de inventario del personal' }, 403)
+        }
         try {
-          const rows = await db.getProductosListApi({
-            categoria: catId,
-            search: search || null,
-            stock_bajo: stock_bajo === 'true',
-            incluir_inactivos: incluir === 'true',
-            limit: 500,
-          })
-          return json(rows.map((r) => mapProductoApi(r as never)))
+          return await withSessionDbRole(
+            user,
+            async () => {
+              const rows = await db.getProductosListApi({
+                categoria: catId,
+                search: search || null,
+                stock_bajo: wantsStaffFilters && stock_bajo === 'true',
+                incluir_inactivos: wantsStaffFilters && incluir === 'true',
+                limit: user ? 500 : 200,
+              })
+              return json(rows.map((r) => mapProductoApi(r as never)))
+            },
+            { publicCatalog: !user },
+          )
         } catch (e) {
           console.error('[GET /api/productos]', e)
           return json(
@@ -58,8 +53,8 @@ export const Route = createFileRoute('/api/productos')({
         }
       },
       POST: async ({ request }) => {
-        const user = await getSessionUser(request)
-        if (!user) return json({ error: 'No autenticado' }, 401)
+        const gate = await requireAuthAndPermission(request, 'catalog:write')
+        if ('response' in gate) return gate.response
         let body: {
           nombre?: string
           descripcion?: string
@@ -84,18 +79,20 @@ export const Route = createFileRoute('/api/productos')({
         if (!isUuid(body.id_categoria) || !isUuid(body.id_proveedor)) {
           return json({ error: 'id_categoria o id_proveedor no son UUID válidos' }, 400)
         }
-        const row = await db.createProducto(
-          body.nombre.trim(),
-          Number(body.precio),
-          body.id_categoria,
-          body.id_proveedor,
-          body.descripcion?.trim(),
-          body.stock ?? 0,
-          body.imagen_url ?? null,
-        )
-        const full = await db.getProductoEnriquecido(row.id as string)
-        if (!full) return json({ error: 'Producto creado pero no se pudo leer' }, 500)
-        return json(mapProductoApi(full as never), 201)
+        return withRequestDbRole(request, async () => {
+          const row = await db.createProducto(
+            body.nombre.trim(),
+            Number(body.precio),
+            body.id_categoria,
+            body.id_proveedor,
+            body.descripcion?.trim(),
+            body.stock ?? 0,
+            body.imagen_url ?? null,
+          )
+          const full = await db.getProductoEnriquecido(row.id as string)
+          if (!full) return json({ error: 'Producto creado pero no se pudo leer' }, 500)
+          return json(mapProductoApi(full as never), 201)
+        })
       },
     },
   },

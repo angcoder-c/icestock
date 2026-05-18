@@ -1,7 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { json, mapProductoApi } from '#/lib/api/http'
-import { getSessionUser, isStaffUser } from '#/lib/api/session'
+import { requireAuthAndPermission } from '#/lib/api/guard'
+import { withSessionDbRole } from '#/lib/api/with-db-role'
 import { cloudinaryConfigured, resolveImageMime, uploadImageBuffer } from '#/lib/cloudinary-upload'
 import * as db from '#/lib/db'
 import { isUuid } from '#/lib/is-uuid'
@@ -10,9 +11,9 @@ export const Route = createFileRoute('/api/upload/imagen')({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const user = await getSessionUser(request)
-        if (!user) return json({ error: 'No autenticado' }, 401)
-        if (!isStaffUser(user)) return json({ error: 'Solo personal autorizado puede subir imágenes' }, 403)
+        const gate = await requireAuthAndPermission(request, 'catalog:upload')
+        if ('response' in gate) return gate.response
+        const user = gate.user
         if (!cloudinaryConfigured()) return json({ error: 'Cloudinary no está configurado (falta CLOUDINARY_URL válida en el servidor)' }, 503)
 
         let form: FormData
@@ -38,19 +39,21 @@ export const Route = createFileRoute('/api/upload/imagen')({
           return json({ error: e instanceof Error ? e.message : 'Error al subir' }, 400)
         }
 
-        let producto: ReturnType<typeof mapProductoApi> | undefined
-        if (typeof idProductoRaw === 'string' && idProductoRaw.trim()) {
-          const id = idProductoRaw.trim()
-          if (isUuid(id)) {
-            const row = await db.updateProducto(id, { imagen_url: secure_url })
-            if (row) {
-              const full = await db.getProductoEnriquecido(id)
-              if (full) producto = mapProductoApi(full as never)
+        return withSessionDbRole(user, async () => {
+          let producto: ReturnType<typeof mapProductoApi> | undefined
+          if (typeof idProductoRaw === 'string' && idProductoRaw.trim()) {
+            const id = idProductoRaw.trim()
+            if (isUuid(id)) {
+              const row = await db.updateProducto(id, { imagen_url: secure_url })
+              if (row) {
+                const full = await db.getProductoEnriquecido(id)
+                if (full) producto = mapProductoApi(full as never)
+              }
             }
           }
-        }
 
-        return json({ url: secure_url, public_id, producto })
+          return json({ url: secure_url, public_id, producto })
+        })
       },
     },
   },

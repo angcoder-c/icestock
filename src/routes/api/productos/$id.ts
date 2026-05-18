@@ -1,7 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { json, mapProductoApi } from '#/lib/api/http'
-import { getSessionUser } from '#/lib/api/session'
+import { requireAuthAndPermission } from '#/lib/api/guard'
+import { withRequestDbRole } from '#/lib/api/with-db-role'
 import { isUuid } from '#/lib/is-uuid'
 import * as db from '#/lib/db'
 
@@ -9,17 +10,19 @@ export const Route = createFileRoute('/api/productos/$id')({
   server: {
     handlers: {
       GET: async ({ request, params }) => {
-        const user = await getSessionUser(request)
-        if (!user) return json({ error: 'No autenticado' }, 401)
+        const gate = await requireAuthAndPermission(request, 'catalog:read')
+        if ('response' in gate) return gate.response
         const id = params.id
         if (!isUuid(id)) return json({ error: 'ID inválido' }, 400)
-        const row = await db.getProductoEnriquecido(id)
-        if (!row) return json({ error: 'Producto no encontrado' }, 404)
-        return json(mapProductoApi(row as never))
+        return withRequestDbRole(request, async () => {
+          const row = await db.getProductoEnriquecido(id)
+          if (!row) return json({ error: 'Producto no encontrado' }, 404)
+          return json(mapProductoApi(row as never))
+        })
       },
       PUT: async ({ request, params }) => {
-        const user = await getSessionUser(request)
-        if (!user) return json({ error: 'No autenticado' }, 401)
+        const gate = await requireAuthAndPermission(request, 'catalog:write')
+        if ('response' in gate) return gate.response
         const id = params.id
         if (!isUuid(id)) return json({ error: 'ID inválido' }, 400)
         let body: Partial<{
@@ -46,20 +49,24 @@ export const Route = createFileRoute('/api/productos/$id')({
         if (body.id_proveedor != null && !isUuid(body.id_proveedor)) {
           return json({ error: 'id_proveedor inválido' }, 400)
         }
-        const row = await db.updateProducto(id, body)
-        if (!row) return json({ error: 'Producto no encontrado' }, 404)
-        const full = await db.getProductoEnriquecido(id)
-        if (!full) return json({ error: 'Producto no encontrado' }, 404)
-        return json(mapProductoApi(full as never))
+        return withRequestDbRole(request, async () => {
+          const row = await db.updateProducto(id, body)
+          if (!row) return json({ error: 'Producto no encontrado' }, 404)
+          const full = await db.getProductoEnriquecido(id)
+          if (!full) return json({ error: 'Producto no encontrado' }, 404)
+          return json(mapProductoApi(full as never))
+        })
       },
       DELETE: async ({ request, params }) => {
-        const user = await getSessionUser(request)
-        if (!user) return json({ error: 'No autenticado' }, 401)
+        const gate = await requireAuthAndPermission(request, 'catalog:write')
+        if ('response' in gate) return gate.response
         const id = params.id
         if (!isUuid(id)) return json({ error: 'ID inválido' }, 400)
-        const row = await db.softDeleteProducto(id)
-        if (!row) return json({ error: 'Producto no encontrado' }, 404)
-        return json({ mensaje: 'Producto desactivado correctamente' })
+        return withRequestDbRole(request, async () => {
+          const row = await db.softDeleteProducto(id)
+          if (!row) return json({ error: 'Producto no encontrado' }, 404)
+          return json({ mensaje: 'Producto desactivado correctamente' })
+        })
       },
     },
   },

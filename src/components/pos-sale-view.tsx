@@ -39,8 +39,8 @@ export type PosSaleShellProps = {
   setCategoriaId: (v: string | null) => void
   categoriasQ: ReturnType<typeof useCategoriasQuery>
   productosQ: ReturnType<typeof useProductosQuery>
-  reporteQ: ReturnType<typeof useVentasDelDiaQuery>
-  homeLink: '/' | '/portal' | '/caja' | '/empleado'
+  reporteQ?: ReturnType<typeof useVentasDelDiaQuery>
+  homeLink: '/' | '/portal' | '/caja' | '/empleado' | '/superadmin'
   /** Texto corto junto al título (ej. Cliente / Caja) */
   roleHint?: string | null
   /** Sin barra superior (cuando ya hay layout de portal) */
@@ -160,7 +160,7 @@ export function PosSaleShell({
               </div>
             </div>
 
-            <ReporteDelDiaBlock query={reporteQ} variant="dark" />
+            {reporteQ ? <ReporteDelDiaBlock query={reporteQ} variant="dark" /> : null}
 
             <div className="mb-4 flex flex-wrap gap-2">
               <button
