@@ -29,7 +29,8 @@ El flujo de negocio va por **API REST con respuestas JSON**; el navegador es un 
 | Tema                                          | Archivo                                                          |
 | --------------------------------------------- | ---------------------------------------------------------------- |
 | **API**                                       | [docs/endpoints.md](docs/endpoints.md)                           |
-| **API (OpenAPI)**                             | [docs/openapi.json](docs/openapi.json)                           |
+| **Permisos API (matriz por rol)**             | [docs/endpoints.md#permisos-por-rol](docs/endpoints.md#permisos-por-rol) |
+| **API (OpenAPI)**                             | [docs/openapi.json](docs/openapi.json) · [public/openapi.json](public/openapi.json) |
 | **Swagger UI**                                | [http://localhost:3000/api/docs](http://localhost:3000/api/docs) |
 | **Autenticación**                             | [docs/auth.md](docs/auth.md)                                     |
 | **Base de datos — normalización (0FN → 3FN)** | [docs/db/normalization.md](docs/db/normalization.md)             |
@@ -57,7 +58,7 @@ docker compose up
 
 - **App:** [http://localhost:3000](http://localhost:3000)  
 - **PostgreSQL:** puerto host **5433** → `5432` en el contenedor  
-- **Init:** `db/schema.sql` se aplica en el primer arranque con volumen vacío
+- **Init:** `db/schema.sql` y `db/roles.sql` en el primer arranque con volumen vacío (modelo `Usuario` unificado; no hay scripts de migración aparte)
 
 Variables de calificación en `.env.example`: usuario DB `**proy2`**, contraseña `**secret**`. Define un `BETTER_AUTH_SECRET` largo. Opcional: `CLOUDINARY_URL` para imágenes.
 

@@ -16,7 +16,8 @@ services:
 
     volumes:
       - pg_data:/var/lib/postgresql/data
-      - ./db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./db/roles.sql:/docker-entrypoint-initdb.d/02-roles.sql
 
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${VITE_DB_USER} -d ${VITE_DB_NAME}"]
