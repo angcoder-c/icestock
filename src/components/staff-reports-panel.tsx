@@ -13,16 +13,20 @@ function exportCsv(filename: string, rows: Record<string, unknown>[]) {
   const keys = Object.keys(rows[0])
   const esc = (v: unknown) => {
     const s = v == null ? '' : String(v)
-    if (s.includes(',') || s.includes('"')) return `"${s.replace(/"/g, '""')}"`
+    if (s.includes(',') || s.includes('"') || s.includes('\n')) return `"${s.replace(/"/g, '""')}"`
     return s
   }
   const lines = [keys.join(','), ...rows.map((r) => keys.map((k) => esc(r[k])).join(','))]
-  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' })
+  const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob)
+  a.href = url
   a.download = filename
+  a.style.display = 'none'
+  document.body.appendChild(a)
   a.click()
-  URL.revokeObjectURL(a.href)
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
 }
 
 type Props = {
@@ -47,9 +51,9 @@ export function StaffReportsPanel({ enabled, reportSub, onReportSub, variant = '
   const subIdle = isLight
     ? 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50'
     : 'bg-[var(--panel)] text-[var(--text)]/75 ring-1 ring-white/15'
-  const titleCls = isLight ? 'text-teal-900' : 'text-[#004d4f]'
+  const titleCls = isLight ? 'text-teal-900' : 'text-[var(--accent)]'
   const mutedCls = isLight ? 'text-slate-600' : 'text-[var(--text)]/75'
-  const accentCls = isLight ? 'text-teal-800' : 'text-[#004d4f]'
+  const accentCls = isLight ? 'text-teal-800' : 'text-[var(--accent)]'
 
   return (
     <div className="space-y-6">
@@ -79,6 +83,16 @@ export function StaffReportsPanel({ enabled, reportSub, onReportSub, variant = '
               )
             else if (reportSub === 'hoy' && d)
               exportCsv('ventas-del-dia.csv', [{ fecha: d.fecha, total_ventas: d.total_ventas, ingresos: d.ingresos }])
+            else if (reportSub === 'insights' && freqQ.data?.length)
+              exportCsv(
+                'clientes-frecuentes.csv',
+                freqQ.data.map((c) => ({
+                  id: c.id,
+                  nombre: c.nombre,
+                  total_compras: c.total_compras,
+                  monto_total: c.monto_total,
+                })),
+              )
           }}
           className={`inline-flex rounded-xl border px-4 py-2 text-sm font-bold ${isLight ? 'border-teal-800 text-teal-800 hover:bg-teal-50' : 'border-[#004d4f] text-[#004d4f] hover:bg-[#004d4f]/5'}`}
         >

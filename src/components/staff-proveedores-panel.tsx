@@ -8,6 +8,18 @@ import {
   useUpdateProveedorMutation,
   type ProveedorApi,
 } from '#/hooks/use-icestock-api'
+import {
+  staffBtnGhostClass,
+  staffBtnPrimaryClass,
+  staffIconBtnClass,
+  staffIconBtnDangerClass,
+  staffInputClass,
+  staffLabelClass,
+  staffPageSubtitleClass,
+  staffPageTitleClass,
+  staffTableHeadClass,
+  staffTableWrapClass,
+} from '#/components/staff-portal-shell'
 import { can } from '#/lib/api/permissions'
 import type { SessionUser } from '#/lib/api/session'
 
@@ -62,14 +74,19 @@ export function StaffProveedoresPanel({ session, enabled, variant = 'light' }: P
     )
   }, [q.data, search])
 
-  const panel = isLight ? 'rounded-2xl border border-slate-200 bg-white shadow-sm' : 'rounded-2xl border border-white/10 bg-slate-900 shadow-lg'
-  const labelCls = isLight ? 'text-xs font-semibold uppercase text-slate-500' : 'text-xs font-semibold uppercase text-slate-400'
+  const panel = isLight ? 'rounded-2xl border border-slate-200 bg-white shadow-sm' : staffTableWrapClass
+  const labelCls = isLight ? 'text-xs font-semibold uppercase text-slate-500' : staffLabelClass
   const inputCls = isLight
     ? 'mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm'
-    : 'mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white'
-  const titleCls = isLight ? 'text-teal-900' : 'text-white'
-  const mutedCls = isLight ? 'text-slate-600' : 'text-slate-400'
-  const btnPrimary = isLight ? 'bg-teal-800 hover:bg-teal-900' : 'bg-violet-600 hover:bg-violet-500'
+    : `mt-1 ${staffInputClass}`
+  const pageTitle = isLight
+    ? 'font-[family-name:var(--font-heading)] text-2xl font-bold text-teal-900'
+    : staffPageTitleClass
+  const pageMuted = isLight ? 'text-sm text-slate-600' : staffPageSubtitleClass
+  const sectionTitle = isLight ? 'text-sm font-semibold text-teal-900' : 'text-sm font-semibold text-[var(--text)]'
+  const btnPrimary = isLight ? 'inline-flex items-center gap-2 rounded-xl bg-teal-800 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-900' : staffBtnPrimaryClass
+  const theadCls = isLight ? 'bg-slate-50 text-xs uppercase text-slate-500' : staffTableHeadClass
+  const cellMuted = isLight ? 'text-slate-600' : 'text-[var(--text)]/75'
 
   const bodyPayload = () => ({
     nombre: form.nombre.trim(),
@@ -170,8 +187,8 @@ export function StaffProveedoresPanel({ session, enabled, variant = 'light' }: P
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className={`font-[family-name:var(--font-heading)] text-2xl font-bold ${titleCls}`}>Proveedores</h1>
-          <p className={`text-sm ${mutedCls}`}>
+          <h1 className={pageTitle}>Proveedores</h1>
+          <p className={pageMuted}>
             {canWrite ? 'Alta, edición y baja de proveedores del catálogo.' : 'Listado de proveedores (solo lectura).'}
           </p>
         </div>
@@ -203,7 +220,7 @@ export function StaffProveedoresPanel({ session, enabled, variant = 'light' }: P
 
       {showCreate && canWrite && !editingId && (
         <form onSubmit={(e) => void onCreate(e)} className={`${panel} space-y-4 p-6`}>
-          <p className={`text-sm font-semibold ${titleCls}`}>Nuevo proveedor</p>
+          <p className={sectionTitle}>Nuevo proveedor</p>
           {formFields}
           {err && <p className="text-sm text-red-600">{err}</p>}
           <div className="flex flex-wrap gap-2">
@@ -222,9 +239,9 @@ export function StaffProveedoresPanel({ session, enabled, variant = 'light' }: P
       )}
 
       {editingId && canWrite && (
-        <form onSubmit={(e) => void onUpdate(e)} className={`${panel} space-y-4 p-6 ring-2 ${isLight ? 'ring-teal-200' : 'ring-violet-500/40'}`}>
+        <form onSubmit={(e) => void onUpdate(e)} className={`${panel} space-y-4 p-6 ring-2 ${isLight ? 'ring-teal-200' : 'ring-[var(--accent)]/35'}`}>
           <div className="flex items-center justify-between gap-2">
-            <p className={`text-sm font-semibold ${titleCls}`}>Editar proveedor</p>
+            <p className={sectionTitle}>Editar proveedor</p>
             <button type="button" onClick={resetForm} className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100" aria-label="Cerrar">
               <X className="h-4 w-4" />
             </button>
@@ -248,17 +265,17 @@ export function StaffProveedoresPanel({ session, enabled, variant = 'light' }: P
 
       <div className={`overflow-hidden ${panel}`}>
         {q.isLoading ? (
-          <p className={`flex items-center gap-2 p-6 text-sm ${mutedCls}`}>
+          <p className={`flex items-center gap-2 p-6 ${pageMuted}`}>
             <Loader2 className="h-4 w-4 animate-spin" /> Cargando…
           </p>
         ) : rows.length === 0 ? (
-          <p className={`flex items-center gap-2 p-8 text-sm ${mutedCls}`}>
+          <p className={`flex items-center gap-2 p-8 ${pageMuted}`}>
             <Building2 className="h-5 w-5 opacity-50" />
             {search.trim() ? 'Sin resultados para la búsqueda.' : 'No hay proveedores registrados.'}
           </p>
         ) : (
           <table className="w-full text-left text-sm">
-            <thead className={isLight ? 'bg-slate-50 text-xs uppercase text-slate-500' : 'border-b border-slate-800 bg-slate-800/50 text-xs uppercase text-slate-400'}>
+            <thead className={theadCls}>
               <tr>
                 <th className="px-4 py-3">Nombre</th>
                 <th className="px-4 py-3">Correo</th>
@@ -275,16 +292,16 @@ export function StaffProveedoresPanel({ session, enabled, variant = 'light' }: P
                     editingId === p.id
                       ? isLight
                         ? 'bg-teal-50/80'
-                        : 'bg-violet-500/10'
+                        : 'bg-[var(--accent)]/10'
                       : isLight
                         ? 'border-t border-slate-100'
-                        : 'border-t border-slate-800'
+                        : 'border-t border-white/10'
                   }
                 >
                   <td className={`px-4 py-3 font-medium ${isLight ? 'text-slate-900' : 'text-white'}`}>{p.nombre}</td>
-                  <td className={`px-4 py-3 ${mutedCls}`}>{p.email ?? '—'}</td>
-                  <td className={`px-4 py-3 ${mutedCls}`}>{p.telefono ?? '—'}</td>
-                  <td className={`max-w-[200px] truncate px-4 py-3 ${mutedCls}`} title={p.direccion ?? undefined}>
+                  <td className={`px-4 py-3 ${cellMuted}`}>{p.email ?? '—'}</td>
+                  <td className={`px-4 py-3 ${cellMuted}`}>{p.telefono ?? '—'}</td>
+                  <td className={`max-w-[200px] truncate px-4 py-3 ${cellMuted}`} title={p.direccion ?? undefined}>
                     {p.direccion ?? '—'}
                   </td>
                   {canWrite && (
@@ -298,7 +315,7 @@ export function StaffProveedoresPanel({ session, enabled, variant = 'light' }: P
                           setShowCreate(false)
                           setErr(null)
                         }}
-                        className={`inline-flex rounded-lg p-2 ${isLight ? 'text-teal-800 hover:bg-teal-50' : 'text-violet-400 hover:bg-violet-500/10'}`}
+                        className={isLight ? 'inline-flex rounded-lg p-2 text-teal-800 hover:bg-teal-50' : staffIconBtnClass}
                       >
                         <Pencil className="h-4 w-4" />
                       </button>
@@ -307,7 +324,7 @@ export function StaffProveedoresPanel({ session, enabled, variant = 'light' }: P
                         title="Eliminar"
                         disabled={deleteMut.isPending}
                         onClick={() => void onDelete(p)}
-                        className="inline-flex rounded-lg p-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10"
+                        className={isLight ? 'inline-flex rounded-lg p-2 text-red-600 hover:bg-red-50' : staffIconBtnDangerClass}
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>

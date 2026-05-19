@@ -6,6 +6,14 @@ import { assignableStaffRoles, resolveStaffRolForCreate } from '#/lib/api/permis
 import { ROLE_LABELS } from '#/lib/auth/role-routes'
 import type { SessionUser } from '#/lib/api/session'
 import {
+  staffBtnPrimaryClass,
+  staffLabelClass,
+  staffPageSubtitleClass,
+  staffPageTitleClass,
+  staffTableHeadClass,
+  staffTableWrapClass,
+} from '#/components/staff-portal-shell'
+import {
   useCreateEmpleadoMutation,
   useDeactivateEmpleadoMutation,
   useEmpleadosQuery,
@@ -22,7 +30,8 @@ export function StaffTeamPanel({ session, enabled, variant = 'light' }: Props) {
   const q = useEmpleadosQuery(enabled && can(session, 'staff:read'))
   const createMut = useCreateEmpleadoMutation()
   const deactivateMut = useDeactivateEmpleadoMutation()
-  const canWrite = can(session, 'staff:write')
+  const canInvite = can(session, 'staff:invite')
+  const canDeactivate = can(session, 'staff:write')
 
   const [showForm, setShowForm] = useState(false)
   const [nombre, setNombre] = useState('')
@@ -58,34 +67,40 @@ export function StaffTeamPanel({ session, enabled, variant = 'light' }: Props) {
     }
   }
 
-  const panel = isLight ? 'rounded-2xl border border-slate-200 bg-white shadow-sm' : 'rounded-2xl border border-white/10 bg-[var(--panel)] shadow-lg'
+  const panel = isLight ? 'rounded-2xl border border-slate-200 bg-white shadow-sm' : staffTableWrapClass
+  const pageTitle = isLight
+    ? 'font-[family-name:var(--font-heading)] text-2xl font-bold text-violet-900'
+    : staffPageTitleClass
+  const pageMuted = isLight ? 'text-sm text-slate-600' : staffPageSubtitleClass
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className={`font-[family-name:var(--font-heading)] text-2xl font-bold ${isLight ? 'text-violet-900' : 'text-white'}`}>
-            Personal
-          </h1>
-          <p className={`text-sm ${isLight ? 'text-slate-600' : 'text-white/70'}`}>
-            Cuentas de personal con acceso al sistema ({assignable.join(', ') || 'solo lectura'}).
+          <h1 className={pageTitle}>Personal</h1>
+          <p className={pageMuted}>
+            Cuentas de personal con acceso al sistema
+            {canInvite
+              ? ` (invitación permitida: ${assignable.join(', ')})`
+              : canDeactivate
+                ? ' (consulta y baja de cuentas; sin invitación de usuarios nuevos)'
+                : ' (solo consulta)'}
+            .
           </p>
         </div>
-        {canWrite && (
+        {canInvite && (
           <button
             type="button"
             onClick={() => setShowForm((v) => !v)}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-white ${
-              isLight ? 'bg-violet-700 hover:bg-violet-800' : 'bg-violet-600 hover:bg-violet-500'
-            }`}
+            className={isLight ? 'inline-flex items-center gap-2 rounded-xl bg-violet-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-violet-800' : staffBtnPrimaryClass}
           >
             <UserPlus className="h-4 w-4" />
-            Nuevo usuario
+            Invitar usuario
           </button>
         )}
       </div>
 
-      {showForm && canWrite && (
+      {showForm && canInvite && (
         <form onSubmit={(e) => void onCreate(e)} className={`${panel} space-y-4 p-6`}>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block text-sm">
@@ -130,13 +145,13 @@ export function StaffTeamPanel({ session, enabled, variant = 'light' }: Props) {
           </p>
         ) : (
           <table className="w-full text-left text-sm">
-            <thead className={isLight ? 'bg-slate-50 text-xs uppercase text-slate-500' : 'bg-white/5 text-xs uppercase text-white/50'}>
+            <thead className={isLight ? 'bg-slate-50 text-xs uppercase text-slate-500' : staffTableHeadClass}>
               <tr>
                 <th className="px-4 py-3">Nombre</th>
                 <th className="px-4 py-3">Correo</th>
                 <th className="px-4 py-3">Rol</th>
                 <th className="px-4 py-3">Estado</th>
-                {canWrite && <th className="px-4 py-3 text-right">Acciones</th>}
+                {canDeactivate && <th className="px-4 py-3 text-right">Acciones</th>}
               </tr>
             </thead>
             <tbody>
@@ -145,10 +160,18 @@ export function StaffTeamPanel({ session, enabled, variant = 'light' }: Props) {
                   <td className="px-4 py-3 font-medium">{e.nombre}</td>
                   <td className="px-4 py-3">{e.email}</td>
                   <td className="px-4 py-3">
-                    <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-800">{e.rol}</span>
+                    <span
+                      className={
+                        isLight
+                          ? 'rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-800'
+                          : 'rounded-full bg-[var(--accent)]/15 px-2 py-0.5 text-xs font-semibold text-[var(--accent)]'
+                      }
+                    >
+                      {e.rol}
+                    </span>
                   </td>
                   <td className="px-4 py-3">{e.activo ? 'Activo' : 'Inactivo'}</td>
-                  {canWrite && (
+                  {canDeactivate && (
                     <td className="px-4 py-3 text-right">
                       {e.activo && (
                         <button
