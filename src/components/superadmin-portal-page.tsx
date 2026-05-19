@@ -24,6 +24,17 @@ import { StaffProveedoresPanel } from '#/components/staff-proveedores-panel'
 import { StaffReportsPanel, type ReportSub } from '#/components/staff-reports-panel'
 import { StaffTeamPanel } from '#/components/staff-team-panel'
 import { SiteLogo } from '#/components/site-logo'
+import {
+  StaffPortalShell,
+  staffCardClass,
+  staffIconBtnClass,
+  staffIconBtnDangerClass,
+  staffNavButton,
+  staffPageSubtitleClass,
+  staffPageTitleClass,
+  staffTableHeadClass,
+  staffTableWrapClass,
+} from '#/components/staff-portal-shell'
 import { useRequireRoles } from '#/hooks/use-role-access'
 import {
   useCategoriasQuery,
@@ -61,9 +72,9 @@ export function SuperadminPortalPage() {
   const clientesListQ = useClientesQuery(enabled && tab === 'clientes')
   if (!ready || !session) {
     return (
-      <div className="grid min-h-screen place-items-center bg-slate-950 text-slate-100">
-        <div className="flex items-center gap-3 rounded-2xl border border-violet-500/30 bg-slate-900 px-6 py-4">
-          <Loader2 className="h-5 w-5 animate-spin text-violet-400" />
+      <div className="grid h-dvh max-h-dvh place-items-center bg-[var(--bg)] text-[var(--text)]">
+        <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[var(--panel)] px-6 py-4 shadow-lg">
+          <Loader2 className="h-5 w-5 animate-spin text-[var(--accent)]" />
           Cargando…
         </div>
       </div>
@@ -100,7 +111,7 @@ export function SuperadminPortalPage() {
 
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-100 antialiased">
-      <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-slate-800 bg-slate-900 px-3 py-6">
+      <aside className="sticky top-0 overflow-hidden flex h-screen w-64 shrink-0 flex-col border-r border-slate-800 bg-slate-900 px-3 py-6">
         <Link to="/superadmin" search={{ tab: 'inicio' }} className="mb-6 flex items-center gap-2 px-2">
           <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-violet-600/20 ring-1 ring-violet-500/40">
             <SiteLogo decorative className="h-6 w-6 object-contain" />
@@ -111,7 +122,7 @@ export function SuperadminPortalPage() {
           </div>
         </Link>
 
-        <nav className="flex flex-1 flex-col gap-1">
+        <nav className="flex flex-1 flex-col gap-1 overflow-y-scroll overscroll-contain">
           {navBtn('inicio', 'Inicio', LayoutDashboard)}
           {navBtn('ventas', 'Ventas / POS', ShoppingCart)}
           {navBtn('productos', 'Productos', Package)}
