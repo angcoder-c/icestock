@@ -71,7 +71,7 @@ Con clave surrogate en `DetalleVenta`, los atributos `cantidad`, `precio_unit` y
 ### Descomposición adicional en 2FN
 
 - `**Producto`** solo guarda `id_categoria` e `id_proveedor` (FK), no `categoria_nombre` ni `proveedor_nombre` en la misma fila.
-- `**Venta**` guarda `id_cliente`, `user_id`, `empleado_id` como FK, no copias redundantes de nombres de cliente o empleado en la cabecera de venta (esos nombres se obtienen por `JOIN` o por la vista `vista_ventas_completa`).
+- `**Venta`** guarda `id_cliente`, `user_id`, `empleado_id` como FK, no copias redundantes de nombres de cliente o empleado en la cabecera de venta (esos nombres se obtienen por `JOIN` o por la vista `vista_ventas_completa`).
 
 ---
 
@@ -104,25 +104,25 @@ Con clave surrogate en `DetalleVenta`, los atributos `cantidad`, `precio_unit` y
 ### Autenticación (Better Auth)
 
 
-| Tabla          | Rol                                       |
-| -------------- | ----------------------------------------- |
+| Tabla          | Rol                                                             |
+| -------------- | --------------------------------------------------------------- |
 | `user`         | Cuenta (`cliente`, `cajero`, `analista`, `admin`, `superadmin`) |
-| `session`      | Sesión activa                             |
-| `account`      | Proveedor de credenciales (password hash) |
-| `Verification` | Tokens de verificación                    |
+| `session`      | Sesión activa                                                   |
+| `account`      | Proveedor de credenciales (password hash)                       |
+| `Verification` | Tokens de verificación                                          |
 
 
 ### Negocio
 
 
-| Tabla          | Descripción                                                                     |
-| -------------- | ------------------------------------------------------------------------------- |
-| `Categoria`    | Clasificación de productos                                                      |
-| `Proveedor`    | Origen / suministro                                                             |
-| `Producto`     | Inventario y precio                                                             |
-| `Usuario`      | Compradores y vendedores; `user_id` opcional (Better Auth)                        |
-| `Venta`        | Cabecera: `id_comprador`, `id_vendedor`, `user_id`, total, estado                |
-| `DetalleVenta` | Líneas: producto, cantidad, precio unitario, subtotal                           |
+| Tabla          | Descripción                                                       |
+| -------------- | ----------------------------------------------------------------- |
+| `Categoria`    | Clasificación de productos                                        |
+| `Proveedor`    | Origen / suministro                                               |
+| `Producto`     | Inventario y precio                                               |
+| `Usuario`      | Compradores y vendedores; `user_id` opcional (Better Auth)        |
+| `Venta`        | Cabecera: `id_comprador`, `id_vendedor`, `user_id`, total, estado |
+| `DetalleVenta` | Líneas: producto, cantidad, precio unitario, subtotal             |
 
 
 ### Objetos derivados

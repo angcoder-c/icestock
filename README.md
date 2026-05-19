@@ -36,6 +36,7 @@ El flujo de negocio va por **API REST con respuestas JSON**; el navegador es un 
 | **API (OpenAPI)**                             | [docs/openapi.json](docs/openapi.json) · [public/openapi.json](public/openapi.json) |
 | **Swagger UI**                                | [http://localhost:3000/api/docs](http://localhost:3000/api/docs) |
 | **Autenticación**                             | [docs/auth.md](docs/auth.md)                                     |
+| **Roles, permisos y modelo de usuario**       | [docs/roles-permisos.md](docs/roles-permisos.md)                   |
 | **Base de datos — normalización (0FN → 3FN)** | [docs/db/normalization.md](docs/db/normalization.md)             |
 | **Base de datos — consultas SQL**             | [docs/db/queries.md](docs/db/queries.md)                         |
 | **Diagrama ER**                               | [docs/db/er.diagram.png](docs/db/er.diagram.png)                 |
