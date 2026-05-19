@@ -25,16 +25,17 @@ describe('permissions matrix', () => {
     expect(can(user('analista'), 'clients:write')).toBe(false)
   })
 
-  it('admin y superadmin gestionan personal', () => {
+  it('solo superadmin invita personal; admin puede dar de baja', () => {
     expect(can(user('admin'), 'staff:write')).toBe(true)
-    expect(can(user('superadmin'), 'staff:read')).toBe(true)
-    expect(can(user('superadmin'), 'staff:invite')).toBe(true)
+    expect(can(user('admin'), 'staff:read')).toBe(true)
     expect(can(user('admin'), 'staff:invite')).toBe(false)
+    expect(can(user('superadmin'), 'staff:invite')).toBe(true)
   })
 
-  it('roles asignables al crear empleado', () => {
-    expect(resolveStaffRolForCreate(user('admin'), undefined)).toBe('cajero')
-    expect(resolveStaffRolForCreate(user('admin'), 'analista')).toBeNull()
+  it('roles asignables al invitar empleado', () => {
+    expect(resolveStaffRolForCreate(user('admin'), undefined)).toBeNull()
+    expect(resolveStaffRolForCreate(user('admin'), 'cajero')).toBeNull()
+    expect(resolveStaffRolForCreate(user('superadmin'), undefined)).toBe('cajero')
     expect(resolveStaffRolForCreate(user('superadmin'), 'analista')).toBe('analista')
   })
 

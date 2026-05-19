@@ -99,7 +99,7 @@ const PERMISSION_LABELS: Record<Permission, string> = {
   'sales:void': 'anular ventas y restaurar stock',
   'reports:read': 'reportes analíticos',
   'staff:read': 'listar personal',
-  'staff:write': 'alta, edición y baja de personal',
+  'staff:write': 'consulta, baja y actualización de personal (sin invitación)',
   'staff:invite': 'invitar personal (reservado superadmin)',
 }
 
@@ -108,7 +108,7 @@ export const ASSIGNABLE_STAFF_ROLES: Record<AppRol, readonly AppRol[]> = {
   cliente: [],
   cajero: [],
   analista: [],
-  admin: ['cajero', 'admin'],
+  admin: [],
   superadmin: ['cajero', 'analista', 'admin', 'superadmin'],
 }
 

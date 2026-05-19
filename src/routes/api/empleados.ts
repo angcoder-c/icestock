@@ -28,7 +28,7 @@ export const Route = createFileRoute('/api/empleados')({
         })
       },
       POST: async ({ request }) => {
-        const gate = await requireAuthAndPermission(request, 'staff:write')
+        const gate = await requireAuthAndPermission(request, 'staff:invite')
         if ('response' in gate) return gate.response
         let body: { nombre?: string; email?: string; password?: string; rol?: string }
         try {
