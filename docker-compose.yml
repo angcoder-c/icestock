@@ -7,20 +7,21 @@ services:
     restart: unless-stopped
 
     environment:
-      POSTGRES_USER: ${VITE_DB_USER}
-      POSTGRES_PASSWORD: ${VITE_DB_PASSWORD}
-      POSTGRES_DB: ${VITE_DB_NAME}
+      POSTGRES_USER: ${VITE_DB_USER:-proy3}
+      POSTGRES_PASSWORD: ${VITE_DB_PASSWORD:-secret}
+      POSTGRES_DB: ${VITE_DB_NAME:-icestock}
 
     ports:
       - "5433:5432"
 
     volumes:
       - pg_data:/var/lib/postgresql/data
+      - ./db/00-ensure-proy3.sql:/docker-entrypoint-initdb.d/00-ensure-proy3.sql
       - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
       - ./db/roles.sql:/docker-entrypoint-initdb.d/02-roles.sql
 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${VITE_DB_USER} -d ${VITE_DB_NAME}"]
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 5s
       timeout: 5s
       retries: 10

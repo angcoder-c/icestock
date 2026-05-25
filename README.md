@@ -16,6 +16,8 @@
 
 Aplicación web para **inventario y ventas** de una tienda: catálogo público, portales de administración y cajero, reportes y autenticación con Better Auth.
 
+**Entrega Proyecto 3 (cc3088):** rama `proyecto-3` — roles PostgreSQL, stored procedures y capa de datos en [`src/lib/db.ts`](src/lib/db.ts). Checklist de rúbrica: [docs/endpoints.md#cobertura--proyecto-3-cc3088](docs/endpoints.md#cobertura--proyecto-3-cc3088).
+
 ## Arquitectura: API REST + cliente React
 
 El flujo de negocio va por **API REST con respuestas JSON**; el navegador es un **cliente React** que consume `/api/...` con `fetch` (TanStack Query). **El frontend no se conecta a PostgreSQL.**
@@ -37,6 +39,7 @@ El flujo de negocio va por **API REST con respuestas JSON**; el navegador es un 
 | **Swagger UI**                                | [http://localhost:3000/api/docs](http://localhost:3000/api/docs) |
 | **Autenticación**                             | [docs/auth.md](docs/auth.md)                                     |
 | **Roles, permisos y modelo de usuario**       | [docs/roles-permisos.md](docs/roles-permisos.md)                   |
+| **Proyecto 3 — rúbrica (checklist)**          | [docs/endpoints.md#cobertura--proyecto-3-cc3088](docs/endpoints.md#cobertura--proyecto-3-cc3088) |
 | **Base de datos — normalización (0FN → 3FN)** | [docs/db/normalization.md](docs/db/normalization.md)             |
 | **Base de datos — consultas SQL**             | [docs/db/queries.md](docs/db/queries.md)                         |
 | **Diagrama ER**                               | [docs/db/er.diagram.png](docs/db/er.diagram.png)                 |
@@ -62,9 +65,20 @@ docker compose up
 
 - **App:** [http://localhost:3000](http://localhost:3000)  
 - **PostgreSQL:** puerto host **5433** → `5432` en el contenedor  
-- **Init:** `db/schema.sql` y `db/roles.sql` en el primer arranque con volumen vacío (modelo `Usuario` unificado; no hay scripts de migración aparte)
+- **Init:** `db/00-ensure-proy3.sql`, `db/schema.sql` y `db/roles.sql` en el primer arranque con volumen vacío (modelo `Usuario` unificado; no hay scripts de migración aparte)
 
-Variables de calificación en `.env.example`: usuario DB `**proy2`**, contraseña `**secret**`. Define un `BETTER_AUTH_SECRET` largo. Opcional: `CLOUDINARY_URL` para imágenes.
+Variables de calificación en `.env.example`: usuario DB **proy3**, contraseña **secret**. Copiar a `.env` y definir `BETTER_AUTH_SECRET` (en `.env` de desarrollo puede ir un valor de ejemplo). Opcional: `CLOUDINARY_URL` para imágenes.
+
+**Error `role "proy3" does not exist`:** el volumen `pg_data` se creó con otro usuario. Recrear la base:
+
+```bash
+docker compose down -v
+docker compose up
+```
+
+(`-v` borra el volumen; solo en desarrollo.)
+
+**Error `role "rol_cliente" does not exist`:** el init no terminó (volumen a medias). Misma solución: `docker compose down -v && docker compose up`. Si la BD ya tiene tablas pero faltan roles: `docker compose exec -T db psql -U proy3 -d icestock -f /docker-entrypoint-initdb.d/02-roles.sql`
 
 ---
 
