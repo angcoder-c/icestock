@@ -2,7 +2,7 @@
 --  Heladería "IceStock" — esquema canónico (init Docker: 01-schema.sql)
 --  Permisos por rol: db/roles.sql (02-roles.sql). Sin carpeta migrations.
 --  Credenciales fijas calificación:
---  usuario: proy2 / password: secret
+--  usuario: proy3 / password: secret
 -- ============================================================
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
@@ -463,69 +463,269 @@ SELECT
 FROM generate_series(1,25);
 
 -- ============================================================
---  FUNCIÓN: registrar_venta (íitems con id_producto UUID en JSON)
+--  PROCEDURES / FUNCIONES — usadas por src/lib/db.ts
+--  Permisos: db/roles.sql
 -- ============================================================
 
+-- Stored procedure: parámetros IN/OUT, transacción explícita (SAVEPOINT + ROLLBACK) y excepciones.
+CREATE OR REPLACE PROCEDURE sp_registrar_venta(
+    IN  p_user_id      TEXT,
+    IN  p_id_comprador UUID,
+    IN  p_id_vendedor  UUID,
+    IN  p_items        JSONB,
+    OUT p_venta_id     UUID,
+    OUT p_total        NUMERIC(10, 2)
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_i       INTEGER := 0;
+    v_n       INTEGER;
+    v_it      JSONB;
+    v_precio  NUMERIC(10, 2);
+    v_stock   INTEGER;
+    v_pid     UUID;
+    v_qty     INTEGER;
+BEGIN
+    p_venta_id := NULL;
+    p_total := 0;
+
+    IF p_items IS NULL OR jsonb_typeof(p_items) <> 'array' OR jsonb_array_length(p_items) = 0 THEN
+        RAISE EXCEPTION 'Debe incluir al menos un ítem'
+            USING ERRCODE = '22023';
+    END IF;
+
+    v_n := jsonb_array_length(p_items);
+    WHILE v_i < v_n LOOP
+        v_it := p_items->v_i;
+        v_pid := (v_it->>'id_producto')::uuid;
+        v_qty := (v_it->>'cantidad')::INTEGER;
+
+        SELECT p.precio, p.stock
+          INTO v_precio, v_stock
+          FROM Producto p
+         WHERE p.id = v_pid AND p.activo = TRUE
+         FOR UPDATE;
+
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Producto % no encontrado o inactivo', v_pid
+                USING ERRCODE = 'P0002';
+        END IF;
+
+        IF v_qty IS NULL OR v_qty <= 0 THEN
+            RAISE EXCEPTION 'Cantidad inválida para producto %', v_pid
+                USING ERRCODE = '22023';
+        END IF;
+
+        IF v_stock < v_qty THEN
+            RAISE EXCEPTION 'Stock insuficiente para producto %', v_pid
+                USING ERRCODE = 'P0001';
+        END IF;
+
+        v_i := v_i + 1;
+    END LOOP;
+
+    INSERT INTO Venta (user_id, id_comprador, id_vendedor, total)
+    VALUES (p_user_id, p_id_comprador, p_id_vendedor, 0)
+    RETURNING id INTO p_venta_id;
+
+    v_i := 0;
+    WHILE v_i < v_n LOOP
+        v_it := p_items->v_i;
+        v_pid := (v_it->>'id_producto')::uuid;
+        v_qty := (v_it->>'cantidad')::INTEGER;
+
+        SELECT p.precio INTO v_precio FROM Producto p WHERE p.id = v_pid;
+
+        INSERT INTO DetalleVenta (id_venta, id_producto, cantidad, precio_unit)
+        VALUES (p_venta_id, v_pid, v_qty, v_precio);
+
+        UPDATE Producto SET stock = stock - v_qty WHERE id = v_pid;
+        p_total := p_total + v_precio * v_qty;
+        v_i := v_i + 1;
+    END LOOP;
+
+    UPDATE Venta SET total = p_total WHERE id = p_venta_id;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        -- El bloque PL/pgSQL revierte sus cambios al propagar la excepción;
+        -- la transacción de sesión hace ROLLBACK en runWithDbRole si el CALL falla.
+        RAISE EXCEPTION 'Error al registrar venta: %', SQLERRM
+            USING ERRCODE = SQLSTATE;
+END;
+$$;
+
+-- Wrapper para compatibilidad (SELECT desde SQL / herramientas).
 CREATE OR REPLACE FUNCTION registrar_venta(
     p_userId       TEXT,
     p_idComprador  UUID,
     p_idVendedor   UUID,
     p_items        JSONB
 )
-RETURNS UUID
-LANGUAGE plpgsql AS $$
+RETURNS TABLE (venta_id UUID, total NUMERIC(10, 2))
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
-    v_id      UUID;
-    v_total   NUMERIC := 0;
-    i         INTEGER := 0;
-    n         INTEGER;
-    it        JSONB;
-    v_precio  NUMERIC;
-    v_stock   INTEGER;
-    v_pid     UUID;
+    v_id    UUID;
+    v_total NUMERIC(10, 2);
 BEGIN
-    n := jsonb_array_length(p_items);
-    WHILE i < n LOOP
-        it := p_items->i;
-        v_pid := (it->>'id_producto')::uuid;
-        SELECT precio, stock
-            INTO v_precio, v_stock
-            FROM Producto
-         WHERE id = v_pid AND activo = TRUE;
-
-        IF NOT FOUND THEN
-            RAISE EXCEPTION 'Producto % no encontrado o inactivo', v_pid;
-        END IF;
-
-        IF v_stock < (it->>'cantidad')::INTEGER THEN
-            RAISE EXCEPTION 'Stock insuficiente para producto %', v_pid;
-        END IF;
-
-        i := i + 1;
-    END LOOP;
-
-    INSERT INTO Venta (user_id, id_comprador, id_vendedor, total)
-    VALUES (p_userId, p_idComprador, p_idVendedor, 0)
-    RETURNING id INTO v_id;
-
-    i := 0;
-    WHILE i < n LOOP
-        it := p_items->i;
-        v_pid := (it->>'id_producto')::uuid;
-        SELECT precio INTO v_precio FROM Producto WHERE id = v_pid;
-
-        INSERT INTO DetalleVenta (id_venta, id_producto, cantidad, precio_unit)
-        VALUES (v_id, v_pid, (it->>'cantidad')::INTEGER, v_precio);
-
-        UPDATE Producto SET stock = stock - (it->>'cantidad')::INTEGER WHERE id = v_pid;
-        v_total := v_total + v_precio * (it->>'cantidad')::INTEGER;
-        i := i + 1;
-    END LOOP;
-
-    UPDATE Venta SET total = v_total WHERE id = v_id;
-    RETURN v_id;
-
-EXCEPTION WHEN OTHERS THEN
-    RAISE;
+    CALL sp_registrar_venta(p_userId, p_idComprador, p_idVendedor, p_items, v_id, v_total);
+    RETURN QUERY SELECT v_id, v_total;
 END;
+$$;
+
+-- Historial de compras del comprador (rol_cliente sin SELECT global en Venta).
+CREATE OR REPLACE FUNCTION fn_mis_compras(
+    p_usuario_id UUID,
+    p_limit      INT DEFAULT 200
+)
+RETURNS TABLE (
+    id     UUID,
+    fecha  TIMESTAMPTZ,
+    total  NUMERIC(10, 2),
+    estado VARCHAR(20),
+    lineas BIGINT
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT
+        v.id,
+        v.fecha,
+        v.total,
+        v.estado::VARCHAR(20),
+        (SELECT COUNT(*)::bigint FROM DetalleVenta dv WHERE dv.id_venta = v.id) AS lineas
+    FROM Venta v
+    WHERE v.id_comprador = p_usuario_id
+    ORDER BY v.fecha DESC
+    LIMIT GREATEST(1, LEAST(COALESCE(p_limit, 200), 500));
+$$;
+
+-- Catálogo activo con categoría y proveedor (tienda / listado público).
+CREATE OR REPLACE FUNCTION fn_catalogo_activo(p_limit INT DEFAULT 500)
+RETURNS TABLE (
+    id                UUID,
+    nombre            VARCHAR(150),
+    descripcion       TEXT,
+    precio            NUMERIC(10, 2),
+    stock             INTEGER,
+    imagen_url        TEXT,
+    activo            BOOLEAN,
+    categoria_id      UUID,
+    categoria_nombre  VARCHAR(100),
+    proveedor_id      UUID,
+    proveedor_nombre  VARCHAR(150)
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT
+        p.id,
+        p.nombre,
+        p.descripcion,
+        p.precio,
+        p.stock,
+        p.imagen_url,
+        p.activo,
+        c.id,
+        c.nombre,
+        pr.id,
+        pr.nombre
+    FROM Producto p
+    JOIN Categoria c ON c.id = p.id_categoria
+    JOIN Proveedor pr ON pr.id = p.id_proveedor
+    WHERE p.activo = TRUE
+    ORDER BY p.nombre
+    LIMIT GREATEST(1, LEAST(COALESCE(p_limit, 500), 1000));
+$$;
+
+-- Anulación: parámetro IN, validaciones con excepciones y ROLLBACK a SAVEPOINT.
+CREATE OR REPLACE PROCEDURE sp_anular_venta(
+    IN p_venta_id UUID,
+    OUT p_anulada BOOLEAN
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_estado VARCHAR(20);
+    dv       RECORD;
+BEGIN
+    p_anulada := FALSE;
+
+    SELECT estado INTO v_estado FROM Venta WHERE id = p_venta_id FOR UPDATE;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Venta no encontrada' USING ERRCODE = 'P0002';
+    END IF;
+    IF v_estado <> 'completada' THEN
+        RAISE EXCEPTION 'La venta ya está anulada' USING ERRCODE = '22023';
+    END IF;
+
+    FOR dv IN
+        SELECT id_producto, cantidad FROM DetalleVenta WHERE id_venta = p_venta_id
+    LOOP
+        UPDATE Producto SET stock = stock + dv.cantidad WHERE id = dv.id_producto;
+    END LOOP;
+
+    UPDATE Venta SET estado = 'anulada' WHERE id = p_venta_id;
+    p_anulada := TRUE;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION anular_venta(p_venta_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_ok BOOLEAN;
+BEGIN
+    CALL sp_anular_venta(p_venta_id, v_ok);
+END;
+$$;
+
+-- Reporte: clientes con más de 3 compras completadas.
+CREATE OR REPLACE FUNCTION fn_clientes_frecuentes()
+RETURNS TABLE (
+    id              UUID,
+    nombre          VARCHAR(150),
+    total_compras   INT,
+    monto_total     NUMERIC(10, 2)
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT
+        u.id,
+        u.nombre,
+        COUNT(v.id)::int AS total_compras,
+        COALESCE(SUM(v.total), 0) AS monto_total
+    FROM Usuario u
+    JOIN Venta v ON v.id_comprador = u.id AND v.estado = 'completada'
+    WHERE u.id IN (
+        SELECT id_comprador
+        FROM Venta
+        WHERE id_comprador IS NOT NULL AND estado = 'completada'
+        GROUP BY id_comprador
+        HAVING COUNT(*) > 3
+    )
+    GROUP BY u.id, u.nombre
+    ORDER BY total_compras DESC;
 $$;

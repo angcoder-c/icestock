@@ -51,59 +51,21 @@ GRANT rol_cajero TO rol_admin;
 GRANT rol_admin TO rol_superadmin;
 
 -- ------------------------------------------------------------
--- 3. Funciones auxiliares (rol_cliente sin SELECT global en Venta)
+-- 3. Funciones almacenadas (definidas en db/schema.sql)
 -- ------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.fn_mis_compras(
-    p_usuario_id UUID,
-    p_limit      INT DEFAULT 200
-)
-RETURNS TABLE (
-    id     UUID,
-    fecha  TIMESTAMPTZ,
-    total  NUMERIC,
-    estado VARCHAR,
-    lineas BIGINT
-)
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-    SELECT
-        v.id,
-        v.fecha,
-        v.total,
-        v.estado::VARCHAR,
-        (SELECT COUNT(*)::bigint FROM detalleventa dv WHERE dv.id_venta = v.id) AS lineas
-    FROM venta v
-    WHERE v.id_comprador = p_usuario_id
-    ORDER BY v.fecha DESC
-    LIMIT GREATEST(1, LEAST(COALESCE(p_limit, 200), 500));
-$$;
-
-CREATE OR REPLACE FUNCTION public.fn_catalogo_activo()
-RETURNS SETOF producto
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-    SELECT * FROM producto WHERE activo = TRUE ORDER BY nombre;
-$$;
-
--- SECURITY DEFINER: ejecutan con privilegios del dueño
-ALTER FUNCTION public.fn_mis_compras(UUID, INT) SECURITY DEFINER;
-ALTER FUNCTION public.fn_catalogo_activo() SECURITY DEFINER;
-ALTER FUNCTION public.registrar_venta(TEXT, UUID, UUID, JSONB) SECURITY DEFINER;
 
 -- ------------------------------------------------------------
 -- 4. REVOKE público en objetos de negocio
 -- ------------------------------------------------------------
 REVOKE ALL ON TABLE categoria, proveedor, producto, usuario, venta, detalleventa FROM PUBLIC;
 REVOKE ALL ON vista_ventas_completa, vista_metricas_empleado FROM PUBLIC;
+REVOKE EXECUTE ON PROCEDURE public.sp_registrar_venta(TEXT, UUID, UUID, JSONB) FROM PUBLIC;
+REVOKE EXECUTE ON PROCEDURE public.sp_anular_venta(UUID) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.registrar_venta(TEXT, UUID, UUID, JSONB) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.fn_mis_compras(UUID, INT) FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.fn_catalogo_activo() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.fn_catalogo_activo(INT) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.anular_venta(UUID) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.fn_clientes_frecuentes() FROM PUBLIC;
 
 -- Better Auth: solo la conexión de la aplicación (no roles de negocio)
 REVOKE ALL ON TABLE "user", session, account, verification FROM PUBLIC;
@@ -126,8 +88,9 @@ GRANT USAGE ON SCHEMA public TO rol_cliente, rol_cajero, rol_analista, rol_admin
 -- JOIN en listado de productos (categoría / proveedor para la ficha en catálogo)
 GRANT SELECT ON TABLE categoria, proveedor, producto TO rol_cliente;
 GRANT SELECT ON TABLE usuario TO rol_cliente;
-GRANT EXECUTE ON FUNCTION public.fn_catalogo_activo() TO rol_cliente;
+GRANT EXECUTE ON FUNCTION public.fn_catalogo_activo(INT) TO rol_cliente;
 GRANT EXECUTE ON FUNCTION public.fn_mis_compras(UUID, INT) TO rol_cliente;
+GRANT EXECUTE ON PROCEDURE public.sp_registrar_venta(TEXT, UUID, UUID, JSONB) TO rol_cliente;
 GRANT EXECUTE ON FUNCTION public.registrar_venta(TEXT, UUID, UUID, JSONB) TO rol_cliente;
 
 -- INSERT venta propia (autocompra: vendedor NULL); la app valida id_comprador
@@ -145,6 +108,7 @@ GRANT SELECT ON TABLE venta, detalleventa TO rol_cajero;
 GRANT INSERT ON TABLE venta, detalleventa TO rol_cajero;
 GRANT INSERT ON TABLE usuario TO rol_cajero;
 GRANT UPDATE (stock) ON TABLE producto TO rol_cajero;
+GRANT EXECUTE ON PROCEDURE public.sp_registrar_venta(TEXT, UUID, UUID, JSONB) TO rol_cajero;
 GRANT EXECUTE ON FUNCTION public.registrar_venta(TEXT, UUID, UUID, JSONB) TO rol_cajero;
 GRANT SELECT ON vista_ventas_completa TO rol_cajero;
 
@@ -155,6 +119,7 @@ GRANT SELECT (id, name, email, rol) ON TABLE "user" TO rol_analista;
 
 GRANT SELECT ON TABLE categoria, proveedor, producto, usuario, venta, detalleventa TO rol_analista;
 GRANT SELECT ON vista_ventas_completa, vista_metricas_empleado TO rol_analista;
+GRANT EXECUTE ON FUNCTION public.fn_clientes_frecuentes() TO rol_analista;
 
 -- ------------------------------------------------------------
 -- 9. rol_admin — operación + catálogo + anulaciones
@@ -166,15 +131,25 @@ GRANT INSERT, UPDATE, DELETE ON TABLE categoria, proveedor, producto, usuario TO
 GRANT UPDATE ON TABLE venta TO rol_admin;
 GRANT UPDATE (stock) ON TABLE producto TO rol_admin;
 GRANT DELETE ON TABLE detalleventa TO rol_admin;
+GRANT EXECUTE ON PROCEDURE public.sp_anular_venta(UUID) TO rol_admin;
+GRANT EXECUTE ON FUNCTION public.anular_venta(UUID) TO rol_admin;
+GRANT EXECUTE ON FUNCTION public.fn_clientes_frecuentes() TO rol_admin;
 
 -- ------------------------------------------------------------
 -- 10. rol_superadmin — control total del esquema de negocio
 -- ------------------------------------------------------------
 GRANT ALL PRIVILEGES ON TABLE categoria, proveedor, producto, usuario, venta, detalleventa TO rol_superadmin;
 GRANT ALL PRIVILEGES ON vista_ventas_completa, vista_metricas_empleado TO rol_superadmin;
+GRANT ALL PRIVILEGES ON PROCEDURE public.sp_registrar_venta(TEXT, UUID, UUID, JSONB) TO rol_superadmin;
+GRANT ALL PRIVILEGES ON PROCEDURE public.sp_anular_venta(UUID) TO rol_superadmin;
 GRANT ALL PRIVILEGES ON FUNCTION public.registrar_venta(TEXT, UUID, UUID, JSONB) TO rol_superadmin;
 GRANT ALL PRIVILEGES ON FUNCTION public.fn_mis_compras(UUID, INT) TO rol_superadmin;
-GRANT ALL PRIVILEGES ON FUNCTION public.fn_catalogo_activo() TO rol_superadmin;
+GRANT ALL PRIVILEGES ON FUNCTION public.fn_catalogo_activo(INT) TO rol_superadmin;
+GRANT ALL PRIVILEGES ON FUNCTION public.anular_venta(UUID) TO rol_superadmin;
+GRANT ALL PRIVILEGES ON FUNCTION public.fn_clientes_frecuentes() TO rol_superadmin;
+
+-- Catálogo enriquecido y reportes también para cajero (POS) y analista
+GRANT EXECUTE ON FUNCTION public.fn_catalogo_activo(INT) TO rol_cajero, rol_analista, rol_admin;
 
 -- ------------------------------------------------------------
 -- 11. La app puede hacer SET ROLE (miembros de cada rol)

@@ -207,73 +207,21 @@ export async function crearVentaTransaccional(params: {
   id_cliente: string | null
   items: SaleItem[]
 }) {
-  return withPgTransaction(async (client) => {
-    let total = 0
-
-    for (const item of params.items) {
-      const stockResult = await client.query(
-        `
-          SELECT id, precio, stock
-          FROM Producto
-          WHERE id = $1
-            AND activo = TRUE
-          FOR UPDATE
-        `,
-        [item.id_producto],
-      )
-
-      if (stockResult.rowCount === 0) {
-        throw new Error(`Producto ${item.id_producto} no existe o no está activo`)
-      }
-
-      const producto = stockResult.rows[0]
-      if (Number(producto.stock) < item.cantidad) {
-        throw new Error(`Stock insuficiente para producto ${item.id_producto}`)
-      }
-
-      total += Number(producto.precio) * item.cantidad
-    }
-
-    const ventaResult = await client.query(
-      `
-        INSERT INTO Venta (user_id, id_comprador, id_vendedor, total)
-        VALUES ($1, $2, $3, 0)
-        RETURNING id
-      `,
-      [params.user_id, params.id_cliente, params.empleado_id],
-    )
-
-    const ventaId = ventaResult.rows[0].id as string
-
-    for (const item of params.items) {
-      const precioResult = await client.query('SELECT precio FROM Producto WHERE id = $1', [
-        item.id_producto,
-      ])
-
-      const precio = Number(precioResult.rows[0].precio)
-
-      await client.query(
-        `
-          INSERT INTO DetalleVenta (id_venta, id_producto, cantidad, precio_unit)
-          VALUES ($1, $2, $3, $4)
-        `,
-        [ventaId, item.id_producto, item.cantidad, precio],
-      )
-
-      await client.query(
-        `
-          UPDATE Producto
-          SET stock = stock - $1
-          WHERE id = $2
-        `,
-        [item.cantidad, item.id_producto],
-      )
-    }
-
-    await client.query('UPDATE Venta SET total = $1 WHERE id = $2', [total, ventaId])
-
-    return { ventaId, total }
-  })
+  const itemsJson = JSON.stringify(
+    params.items.map((it) => ({
+      id_producto: it.id_producto,
+      cantidad: it.cantidad,
+    })),
+  )
+  const result = await pgQuery<{ p_venta_id: string; p_total: string }>(
+    `CALL sp_registrar_venta($1::text, $2::uuid, $3::uuid, $4::jsonb, NULL, NULL)`,
+    [params.user_id, params.id_cliente, params.empleado_id, itemsJson],
+  )
+  if (result.rowCount === 0) {
+    throw new Error('No se pudo registrar la venta')
+  }
+  const row = result.rows[0]
+  return { ventaId: row.p_venta_id, total: Number(row.p_total) }
 }
 
 export async function getDashboardData() {
@@ -829,18 +777,7 @@ export async function countProductosByProveedor(proveedorId: string) {
 
 export async function getVentasByClienteId(clienteId: string, limit = 200) {
   const result = await pgQuery(
-    `
-      SELECT
-        v.id,
-        v.fecha,
-        v.total,
-        v.estado,
-        (SELECT COUNT(*)::int FROM DetalleVenta dv WHERE dv.id_venta = v.id) AS lineas
-      FROM Venta v
-      WHERE v.id_comprador = $1
-      ORDER BY v.fecha DESC
-      LIMIT $2
-    `,
+    `SELECT id, fecha, total, estado, lineas FROM fn_mis_compras($1::uuid, $2::int)`,
     [clienteId, limit],
   )
   return result.rows
@@ -916,26 +853,15 @@ export async function getVentaDetalleApi(ventaId: string) {
 }
 
 export async function anularVentaTransaccional(ventaId: string) {
-  return withPgTransaction(async (client) => {
-    const v = await client.query('SELECT id, estado FROM Venta WHERE id = $1 FOR UPDATE', [ventaId])
-    if (v.rowCount === 0) {
+  try {
+    await pgQuery(`CALL sp_anular_venta($1::uuid, NULL)`, [ventaId])
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    if (msg.includes('no encontrada')) {
       throw Object.assign(new Error('Venta no encontrada'), { code: 'NOT_FOUND' })
     }
-    if (v.rows[0].estado !== 'completada') {
-      throw new Error('La venta ya está anulada')
-    }
-    const dvs = await client.query(
-      'SELECT id_producto, cantidad FROM DetalleVenta WHERE id_venta = $1',
-      [ventaId],
-    )
-    for (const row of dvs.rows) {
-      await client.query('UPDATE Producto SET stock = stock + $1 WHERE id = $2', [
-        row.cantidad,
-        row.id_producto,
-      ])
-    }
-    await client.query(`UPDATE Venta SET estado = 'anulada' WHERE id = $1`, [ventaId])
-  })
+    throw e
+  }
 }
 
 export async function getProductosListApi(opts: {
@@ -946,6 +872,30 @@ export async function getProductosListApi(opts: {
   limit?: number
 }) {
   const limit = opts.limit ?? 200
+  const sinFiltrosStaff =
+    !opts.categoria && !opts.search && !opts.stock_bajo && !opts.incluir_inactivos
+  if (sinFiltrosStaff) {
+    const result = await pgQuery(
+      `
+        SELECT
+          id,
+          nombre,
+          descripcion,
+          precio,
+          stock,
+          imagen_url,
+          activo,
+          categoria_id,
+          categoria_nombre,
+          proveedor_id,
+          proveedor_nombre
+        FROM fn_catalogo_activo($1::int)
+      `,
+      [limit],
+    )
+    return result.rows
+  }
+
   const params: unknown[] = []
   let where = 'WHERE 1=1'
   if (!opts.incluir_inactivos) {
@@ -1144,22 +1094,9 @@ export async function getVentasPorCategoriaReporteApi() {
 }
 
 export async function getClientesFrecuentesApi() {
-  const result = await pgQuery(`
-    SELECT u.id, u.nombre,
-           COUNT(v.id)::int AS total_compras,
-           COALESCE(SUM(v.total), 0) AS monto_total
-    FROM Usuario u
-    JOIN Venta v ON v.id_comprador = u.id AND v.estado = 'completada'
-    WHERE u.id IN (
-      SELECT id_comprador
-      FROM Venta
-      WHERE id_comprador IS NOT NULL AND estado = 'completada'
-      GROUP BY id_comprador
-      HAVING COUNT(*) > 3
-    )
-    GROUP BY u.id, u.nombre
-    ORDER BY total_compras DESC
-  `)
+  const result = await pgQuery(
+    `SELECT id, nombre, total_compras, monto_total FROM fn_clientes_frecuentes()`,
+  )
   return result.rows
 }
 
