@@ -3,7 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { Loader2 } from 'lucide-react'
 
 import { useIcestock } from '#/context/icestock-context'
-import { useCategoriasQuery, useProductosQuery, useVentasDelDiaQuery } from '#/hooks/use-icestock-api'
+import { useCategoriasQuery, useProductosQuery } from '#/hooks/use-icestock-api'
 import { PosSaleShell } from '#/components/pos-sale-view'
 
 export function TiendaPage() {
@@ -41,7 +41,6 @@ export function TiendaPage() {
   const ok = session?.user?.rol === 'cliente'
   const categoriasQ = useCategoriasQuery(ok)
   const productosQ = useProductosQuery(debouncedSearch, categoriaId, ok)
-  const reporteQ = useVentasDelDiaQuery(ok)
 
   const roleHint = useMemo(() => 'Cliente', [])
 
@@ -66,7 +65,6 @@ export function TiendaPage() {
       setCategoriaId={setCategoriaId}
       categoriasQ={categoriasQ}
       productosQ={productosQ}
-      reporteQ={reporteQ}
       homeLink="/"
       roleHint={roleHint}
       checkoutMode="cliente"

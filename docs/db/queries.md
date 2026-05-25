@@ -90,7 +90,7 @@ CRUD estándar: `INSERT` / `SELECT` / `UPDATE` / `DELETE` por `id` (UUID).
 | Función | Descripción |
 |---------|-------------|
 | `getClientes`, `getCliente`, `createCliente`, `updateCliente`, `deleteCliente` | CRUD |
-| `getOrCreateClienteForUser` | Busca por email; si no existe, `INSERT` (tienda / `GET /api/clientes/me`) |
+| `getOrCreateClienteForUser` | Busca por email; vincula `user_id` o `INSERT` (`GET /api/clientes/me`; requiere `SELECT`/`INSERT`/`UPDATE` en `usuario` para `rol_cliente`) |
 | `getClienteConStats` | Cliente + `COUNT`/`SUM` de ventas completadas |
 | `getVentasByClienteId` | Historial para **Mis compras** (`GET /api/clientes/me/ventas`) |
 | `getClientesConCompraMayorA` | Subconsulta `Venta.total >= $monto` |

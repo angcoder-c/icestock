@@ -65,7 +65,7 @@ docker compose up
 
 - **App:** [http://localhost:3000](http://localhost:3000)  
 - **PostgreSQL:** puerto host **5433** → `5432` en el contenedor  
-- **Init:** `db/00-ensure-proy3.sql`, `db/schema.sql` y `db/roles.sql` en el primer arranque con volumen vacío (modelo `Usuario` unificado; no hay scripts de migración aparte)
+- **Init:** `db/schema.sql` y `db/roles.sql` en el primer arranque con volumen vacío (el bootstrap de `proy3` ya vive dentro de `db/schema.sql`; modelo `Usuario` unificado; no hay scripts de migración aparte)
 
 Variables de calificación en `.env.example`: usuario DB **proy3**, contraseña **secret**. Copiar a `.env` y definir `BETTER_AUTH_SECRET` (en `.env` de desarrollo puede ir un valor de ejemplo). Opcional: `CLOUDINARY_URL` para imágenes.
 

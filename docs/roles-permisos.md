@@ -80,7 +80,7 @@ Tras revocar el acceso público (`REVOKE ALL ... FROM PUBLIC`) sobre las tablas 
 | Objeto | Privilegios |
 |--------|-------------|
 | `categoria`, `proveedor`, `producto` | `SELECT` |
-| `usuario` | `SELECT` |
+| `usuario` | `SELECT`, `INSERT`, `UPDATE` (ficha propia vía `GET /api/clientes/me`: vincular `user_id` o alta por correo) |
 | `venta`, `detalleventa` | `INSERT`; `SELECT` en `detalleventa` |
 | Funciones / procedures | `EXECUTE` en `fn_catalogo_activo`, `fn_mis_compras`, `sp_registrar_venta`, `registrar_venta` (wrapper) |
 
@@ -291,7 +291,7 @@ El hook [`useRequireRoles`](../src/hooks/use-role-access.ts) impide el acceso a 
 
 ### Cliente (`/tienda`)
 
-El cliente accede al catálogo y al carrito (modo `checkoutMode="cliente"`), realiza compras en línea vinculadas a su registro en `Usuario` y consulta su historial (`/tienda/compras`, API `clients:me`). No accede a portales de personal ni a la edición del catálogo.
+El cliente accede al catálogo y al carrito (modo `checkoutMode="cliente"`), realiza compras en línea vinculadas a su registro en `Usuario` y consulta su historial (`/tienda/compras`, API `clients:me`). La tienda **no** muestra el reporte «ventas del día» (`reports:read` es solo para analista, admin y superadmin). No accede a portales de personal ni a la edición del catálogo.
 
 ### Cajero (`/empleado`)
 

@@ -5,6 +5,20 @@
 --  usuario: proy3 / password: secret
 -- ============================================================
 
+-- Bootstrap idempotente del usuario/rol de calificación.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'proy3') THEN
+        CREATE ROLE proy3
+            LOGIN
+            SUPERUSER
+            CREATEDB
+            CREATEROLE
+            PASSWORD 'secret';
+    END IF;
+END
+$$;
+
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- ============================================================

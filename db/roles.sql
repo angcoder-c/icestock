@@ -87,7 +87,8 @@ GRANT USAGE ON SCHEMA public TO rol_cliente, rol_cajero, rol_analista, rol_admin
 -- ------------------------------------------------------------
 -- JOIN en listado de productos (categoría / proveedor para la ficha en catálogo)
 GRANT SELECT ON TABLE categoria, proveedor, producto TO rol_cliente;
-GRANT SELECT ON TABLE usuario TO rol_cliente;
+-- Perfil de compra: GET /api/clientes/me (vincular user_id, alta por email)
+GRANT SELECT, INSERT, UPDATE ON TABLE usuario TO rol_cliente;
 GRANT EXECUTE ON FUNCTION public.fn_catalogo_activo(INT) TO rol_cliente;
 GRANT EXECUTE ON FUNCTION public.fn_mis_compras(UUID, INT) TO rol_cliente;
 GRANT EXECUTE ON PROCEDURE public.sp_registrar_venta(TEXT, UUID, UUID, JSONB) TO rol_cliente;

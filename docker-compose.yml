@@ -16,7 +16,6 @@ services:
 
     volumes:
       - pg_data:/var/lib/postgresql/data
-      - ./db/00-ensure-proy3.sql:/docker-entrypoint-initdb.d/00-ensure-proy3.sql
       - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
       - ./db/roles.sql:/docker-entrypoint-initdb.d/02-roles.sql
 

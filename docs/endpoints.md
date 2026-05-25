@@ -467,6 +467,27 @@ Soft delete — cambia `activo` a `false`.
 { "mensaje": "Cliente eliminado correctamente" }
 ```
 
+### GET `/api/clientes/me` (tienda en línea)
+
+**Permiso:** `clients:me` (rol `cliente`).
+
+Obtiene o crea la fila en `Usuario` vinculada a la sesión Better Auth (`user_id` o correo). En PostgreSQL, `rol_cliente` requiere `SELECT`, `INSERT` y `UPDATE` sobre la tabla `usuario` (véase `db/roles.sql`).
+
+**Response 200**
+
+```json
+{
+  "id": "uuid",
+  "nombre": "María López",
+  "email": "maria@mail.com",
+  "telefono": null
+}
+```
+
+### GET `/api/clientes/me/ventas`
+
+**Permiso:** `clients:me`. Historial vía `fn_mis_compras(usuario_id, limit)` con `SET LOCAL ROLE rol_cliente`.
+
 ---
 
 ## Ventas — `/api/ventas`
