@@ -128,7 +128,7 @@ Con clave surrogate en `DetalleVenta`, los atributos `cantidad`, `precio_unit` y
 ### Objetos derivados
 
 - **Vista** `vista_ventas_completa`: proyección para reportes (JOIN de venta, cliente, empleado, producto, categoría).
-- **Función** `registrar_venta(...)`: transacción PL/pgSQL alternativa (validación de stock + inserción); la aplicación usa principalmente `crearVentaTransaccional` en Node.
+- **Procedures y funciones** (`sp_registrar_venta`, `sp_anular_venta`, `fn_mis_compras`, `fn_catalogo_activo`, `fn_clientes_frecuentes`, wrappers `registrar_venta` / `anular_venta`): lógica transaccional y reportes en PL/pgSQL; la capa [`src/lib/db.ts`](../../src/lib/db.ts) las invoca vía `CALL` / `SELECT`; ventas y anulaciones usan bloques `EXCEPTION` en los procedures (rollback de sesión al fallar). Ver [queries.md](./queries.md).
 - **Índices** en FK y fechas para consultas frecuentes.
 
 ### Identificadores

@@ -1,269 +1,95 @@
-# Sistema de Autenticación - Documentación Técnica
+# Autenticación — IceStock
 
-## Descripción General
+## Descripción general
 
-Se ha implementado un sistema de autenticación completo para dos tipos de usuarios:
+La aplicación utiliza **[Better Auth](https://www.better-auth.com/)** para registro, inicio de sesión y cierre de sesión. Las credenciales y sesiones viven en PostgreSQL (`"user"`, `session`, `account`, `Verification`). El campo `"user".rol` define el tipo de cuenta en la aplicación y se alinea con los roles PostgreSQL (`rol_*`).
 
-- **Empleados**: Acceso al sistema de punto de venta (cajeros y admins)
-- **Clientes**: Acceso para ver sus compras y perfil
+El frontend usa el cliente oficial (`better-auth/client`) y cookies de sesión; **no** se implementan JWT propios ni endpoints `/api/auth/empleados/*` / `/api/auth/clientes/*`.
 
-## Tecnologías Utilizadas
+Documentación de rutas HTTP: [endpoints.md](./endpoints.md#auth--better-auth). OpenAPI (tags **Auth**): [openapi.json](./openapi.json). Permisos por rol: [roles-permisos.md](./roles-permisos.md).
 
-- **Hashing de Contraseñas**: `bcryptjs` (10 rounds)
-- **Tokens JWT**: `jsonwebtoken` con expiración de 7 días
-- **Base de Datos**: PostgreSQL con tablas Better Auth + Custom
+---
 
-## Arquitectura
+## Rutas Better Auth (automáticas)
 
-### Base de Datos
+| Método | Ruta | Uso |
+|--------|------|-----|
+| POST | `/api/auth/sign-in/email` | Inicio de sesión (email + contraseña) |
+| POST | `/api/auth/sign-out` | Cierre de sesión |
+| GET | `/api/auth/get-session` | Sesión actual (hidratación del contexto React) |
 
-#### Tablas Better Auth
+El registro público de clientes puede exponerse según la configuración de Better Auth; el alta de **personal** se hace por `POST /api/empleados` (solo **superadmin**, permiso `staff:invite`).
 
-- `user`: Usuarios del sistema
-- `session`: Sesiones activas
-- `account`: Credenciales (almacena hash bcrypt)
-- `Verification`: Tokens de verificación
+---
 
-#### Tablas Custom
+## Rutas de la interfaz
 
-- `Empleado`: Perfil de empleados (vinculado a `user` via `user_id`)
-- `Cliente`: Perfil de clientes (vinculado a `user` via `user_id`)
+| Rol | Login | Portal principal |
+|-----|-------|------------------|
+| Cliente | `/login/cliente` | `/tienda` |
+| Personal (cajero, analista, admin, superadmin) | `/login/empleado` | `/empleado`, `/analista`, `/portal` o `/superadmin` según `user.rol` |
+| Instalación inicial | — | `/setup` (primer superadmin si no existe ninguno) |
 
-### Flujo de Autenticación
+La protección de pantallas usa `useRequireRoles` y `canAccessPath` ([`src/lib/auth/role-routes.ts`](../src/lib/auth/role-routes.ts)).
 
-#### Registro
+---
 
-1. Usuario envía email, password y datos personales
-2. Se verifica que el email no esté duplicado
-3. Se genera UUID para el usuario
-4. Se hashea la contraseña con bcryptjs
-5. Se inserta en `user` table
-6. Se inserta en `Empleado` o `Cliente` table
-7. Se inserta hash en `account` table
-8. Se genera JWT token de 7 días
-9. Se retorna token + datos del usuario
+## Capa de datos (`src/lib/db.ts`)
 
-#### Login
+Better Auth gestiona la mayoría de operaciones sobre `"user"` / `session` / `account`. Para personal del negocio, la app usa:
 
-1. Usuario envía email y password
-2. Se busca el usuario en `user` table
-3. Se obtiene el hash de `account` table
-4. Se verifica password con bcryptjs
-5. Se genera JWT token
-6. Se retorna token + datos del usuario
+| Función | Descripción |
+|---------|-------------|
+| `findUserByEmail` | Comprueba duplicados antes de alta |
+| `createUserAccountAndEmpleado` | `INSERT` en `"user"`, `account` y fila en `Usuario` (transacción) |
+| `updateUserEmpleadoProfile` | Actualiza nombre y `rol` en `"user"` |
+| `deactivateEmpleadoByUserId` | `UPDATE Usuario SET activo = FALSE` |
+| `bootstrapSuperadmin` | Primer superadmin cuando la BD no tiene ninguno |
 
-#### Verificación de Token
+Las contraseñas las hashea Better Auth (credencial en `account.password`).
 
-1. Frontend envía token en header `Authorization: Bearer <token>`
-2. Se verifica y decodifica el JWT
-3. Se retornan datos del usuario si es válido
-4. Se retorna error 401 si no es válido
+---
 
-## Código Implementado
-
-### Backend (`src/lib/db.ts`)
-
-#### Funciones principales
-
-```typescript
-// Registro de empleados
-export async function registerEmpleado(
-  email: string,
-  password: string,
-  name: string,
-  rol: 'admin' | 'cajero' = 'cajero'
-): Promise<AuthResponse>
-
-// Login de empleados
-export async function loginEmpleado(
-  email: string,
-  password: string
-): Promise<AuthResponse>
-
-// Registro de clientes
-export async function registerCliente(
-  email: string,
-  password: string,
-  nombre: string
-): Promise<AuthResponse>
-
-// Login de clientes
-export async function loginCliente(
-  email: string,
-  password: string
-): Promise<AuthResponse>
-
-// Verificar token JWT
-export function verifyToken(token: string)
-```
-
-### API Endpoints
-
-#### Empleados
-
-- `POST /api/auth/empleados/register` - Registrar nuevo empleado
-- `POST /api/auth/empleados/login` - Iniciar sesión como empleado
-
-#### Clientes
-
-- `POST /api/auth/clientes/register` - Registrar nuevo cliente
-- `POST /api/auth/clientes/login` - Iniciar sesión como cliente
-
-#### General
-
-- `GET /api/auth/me` - Obtener usuario actual (requiere token)
-
-### Componentes UI (`src/routes/`)
-
-#### Empleados
-
-- `/empleados/login` - Formulario de login para empleados
-- `/empleados/register` - Formulario de registro para empleados
-
-#### Clientes
-
-- `/clientes/login` - Formulario de login para clientes
-- `/clientes/register` - Formulario de registro para clientes
-
-## Flujo de Uso
-
-### Para Empleados
-
-1. **Registro**
-  - Acceder a `/empleados/register`
-  - Completar: Nombre, Email, Contraseña, Confirmar Contraseña
-  - El rol se asigna como "cajero" por defecto
-  - Se guarda token en localStorage y redirige a `/dashboard`
-2. **Login**
-  - Acceder a `/empleados/login`
-  - Completar: Email, Contraseña
-  - Se guarda token en localStorage y redirige a `/dashboard`
-
-### Para Clientes
-
-1. **Registro**
-  - Acceder a `/clientes/register`
-  - Completar: Nombre, Email, Contraseña, Confirmar Contraseña
-  - Se guarda token en localStorage y redirige a `/mi-cuenta`
-2. **Login**
-  - Acceder a `/clientes/login`
-  - Completar: Email, Contraseña
-  - Se guarda token en localStorage y redirige a `/mi-cuenta`
-
-## Almacenamiento de Token
-
-El token JWT se guarda en `localStorage`:
-
-```typescript
-localStorage.setItem('token', data.token);
-localStorage.setItem('user', JSON.stringify(data.user));
-```
-
-Cada petición protegida debe enviar el token en el header:
-
-```typescript
-fetch('/api/auth/me', {
-  headers: { 'Authorization': `Bearer ${token}` }
-})
-```
-
-## Validación
-
-### Email
-
-- Se verifica que no esté duplicado
-- Formato de email válido (validado por input type="email")
-
-### Contraseña
-
-- Mínimo 6 caracteres
-- Se hashea con bcryptjs (10 rounds)
-- Nunca se almacena en texto plano
-
-### JWT
-
-- Expiración: 7 días
-- Secret: Configurable via `JWT_SECRET` env var
-- Payload contiene: userId, email, tipo (empleado/cliente), rol (si aplica)
-
-## Manejo de Errores
-
-### Errores de Validación (400)
-
-- Email duplicado
-- Campos requeridos faltantes
-- Contraseñas no coinciden
-
-### Errores de Autenticación (401)
-
-- Usuario o contraseña incorrectos
-- Token inválido o expirado
-- Token no proporcionado
-
-### Errores del Servidor (500)
-
-- Error en la base de datos
-- Error interno del servidor
-
-## Configuración
-
-### Variables de Entorno
+## Variables de entorno
 
 ```env
-# JWT
-JWT_SECRET=super-secret-key-change-in-production
+BETTER_AUTH_URL=http://localhost:3000
+BETTER_AUTH_SECRET=   # obligatorio: cadena larga y aleatoria
 
-# Base de Datos
-DB_USER=postgres
-DB_PASSWORD=postgres
-DB_HOST=localhost
-DB_NAME=icestock
-DB_PORT=5432
+# PostgreSQL (calificación: proy3 / secret — ver .env.example)
+DATABASE_URL=postgres://proy3:secret@db:5432/icestock
 ```
 
-## Próximos Pasos (Opcionales)
+---
 
-### Mejoras Sugeridas
+## Cuentas de demostración (seed)
 
-1. **Email Verification**
-  - Enviar email de confirmación al registrar
-  - Marcar `email_verified` como true solo después de confirmación
-2. **Password Reset**
-  - Crear endpoint para solicitar reset
-  - Enviar link con token de tiempo limitado
-3. **Refresh Tokens**
-  - Implementar tokens de refresco
-  - Rotar access tokens cada cierto tiempo
-4. **Protección de Rutas**
-  - Crear middleware para proteger rutas
-  - Redirigir a login si token está expirado
-5. **Social Login**
-  - Integrar con Better Auth para OAuth
-  - Login con Google, GitHub, etc.
-6. **2FA (Two-Factor Authentication)**
-  - Enviar código via email o SMS
-  - Verificar antes de completar login
-7. **Auditoría**
-  - Registrar intentos de login
-  - Alertar sobre acceso anómalo
+Contraseña para todas: **`secret`** (definida en `db/schema.sql`).
 
-## Testing
+| Rol | Email |
+|-----|-------|
+| superadmin | superadmin@heladeria.com |
+| admin | admin@heladeria.com |
+| analista | analista@heladeria.com |
+| cajero | cajero@heladeria.com |
+| cliente | cliente@heladeria.com |
 
-### Credenciales de Prueba
+Listado en código: [`src/lib/setup-demo.ts`](../src/lib/setup-demo.ts).
 
-**Empleado (creado con seed)**
+---
 
-```
-Email: admin@heladeria.com
-Password: secret
-Rol: admin
-```
+## Flujo resumido
 
-**Cliente (nuevo registro)**
+1. El usuario envía email y contraseña a `POST /api/auth/sign-in/email`.
+2. Better Auth valida contra `account` y crea la sesión (cookie).
+3. Cada petición a `/api/*` de negocio pasa por `requireAuth` / `requireAuthAndPermission` y, en base de datos, por `runWithDbRole` (`SET LOCAL ROLE` según `user.rol`).
+4. `POST /api/auth/sign-out` invalida la sesión.
 
-```
-Email: cliente@test.com
-Password: password123
-Nombre: Cliente Test
-```
+---
 
+## Errores habituales
+
+| Código | Situación |
+|--------|-----------|
+| 401 | Sin sesión o credenciales inválidas |
+| 403 | Sesión válida pero permiso HTTP insuficiente (`permissions.ts`) |

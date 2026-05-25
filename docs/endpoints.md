@@ -68,11 +68,15 @@ La API valida cada ruta con una **matriz de permisos** (`src/lib/api/permissions
 | POST | `/api/ventas` | `sales:create_pos` **o** `sales:create_self` | sí |
 | GET | `/api/ventas/:id` | `sales:read` | sí |
 | DELETE | `/api/ventas/:id` | `sales:void` | sí |
-| GET/POST | `/api/empleados` | `staff:read` / `staff:write` | sí |
+| GET | `/api/empleados` | `staff:read` | sí |
+| POST | `/api/empleados` | `staff:invite` | sí |
 | PUT/DELETE | `/api/empleados/:userId` | `staff:write` | sí |
 | GET | `/api/reportes/*` | `reports:read` | sí |
+| GET | `/api/setup/status` | — (público) | no |
+| POST | `/api/setup/bootstrap` | — (solo si no hay superadmin) | no |
+| GET | `/api/docs` | — (Swagger UI) | no |
 
-**Alta de personal (`POST /api/empleados`):** `admin` puede asignar `cajero` o `admin`; `superadmin` puede asignar `cajero`, `analista` o `admin`.
+**Alta de personal (`POST /api/empleados`):** solo **superadmin** (`staff:invite`). El **admin** puede consultar y desactivar personal, no invitar usuarios nuevos.
 
 **Respuesta 403:** `{ "error": "Sin permiso: …" }` con descripción del permiso faltante.
 
@@ -94,7 +98,7 @@ Inicia sesión. Better Auth crea la sesión y devuelve una cookie `better-auth.s
 ```json
 {
   "email": "admin@heladeria.com",
-  "password": "secret123"
+  "password": "secret"
 }
 ```
 
@@ -130,252 +134,13 @@ Inicia sesión. Better Auth crea la sesión y devuelve una cookie `better-auth.s
 
 Cierra la sesión activa. Invalida la cookie.
 
----
-
-## Autenticación Custom — Empleados y Clientes
-
-Sistema de autenticación con email/password, JWT tokens y bcrypt para hashing de contraseñas.
-
-### POST `/api/auth/empleados/register`
-
-Registra un nuevo empleado.
-
-**Request body**
-
-```json
-{
-  "email": "empleado@heladeria.com",
-  "password": "password123",
-  "name": "Juan Pérez",
-  "rol": "cajero"
-}
-```
-
-**Response 201**
-
-```json
-{
-  "token": "eyJhbGc...",
-  "user": {
-    "id": "user_1234567890",
-    "email": "empleado@heladeria.com",
-    "name": "Juan Pérez",
-    "rol": "cajero",
-    "tipo": "empleado"
-  }
-}
-```
-
-**Response 400**
-
-```json
-{ "error": "El correo ya está registrado" }
-```
-
-### POST `/api/auth/empleados/login`
-
-Inicia sesión como empleado.
-
-**Request body**
-
-```json
-{
-  "email": "empleado@heladeria.com",
-  "password": "password123"
-}
-```
-
-**Response 200**
-
-```json
-{
-  "token": "eyJhbGc...",
-  "user": {
-    "id": "user_1234567890",
-    "email": "empleado@heladeria.com",
-    "name": "Juan Pérez",
-    "rol": "cajero",
-    "tipo": "empleado"
-  }
-}
-```
-
-**Response 401**
-
-```json
-{ "error": "Usuario o contraseña incorrectos" }
-```
-
-### POST `/api/auth/clientes/register`
-
-Registra un nuevo cliente.
-
-**Request body**
-
-```json
-{
-  "email": "cliente@email.com",
-  "password": "password123",
-  "nombre": "María García"
-}
-```
-
-**Response 201**
-
-```json
-{
-  "token": "eyJhbGc...",
-  "user": {
-    "id": "user_9876543210",
-    "email": "cliente@email.com",
-    "name": "María García",
-    "rol": "cliente",
-    "tipo": "cliente"
-  }
-}
-```
-
-**Response 400**
-
-```json
-{ "error": "El correo ya está registrado" }
-```
-
-### POST `/api/auth/clientes/login`
-
-Inicia sesión como cliente.
-
-**Request body**
-
-```json
-{
-  "email": "cliente@email.com",
-  "password": "password123"
-}
-```
-
-**Response 200**
-
-```json
-{
-  "token": "eyJhbGc...",
-  "user": {
-    "id": "user_9876543210",
-    "email": "cliente@email.com",
-    "name": "María García",
-    "rol": "cliente",
-    "tipo": "cliente"
-  }
-}
-```
-
-**Response 401**
-
-```json
-{ "error": "Usuario o contraseña incorrectos" }
-```
-
-### GET `/api/auth/me`
-
-Obtiene la información del usuario actual (requiere token JWT en header).
-
-**Request headers**
-
-```
-Authorization: Bearer <token>
-```
-
-**Response 200**
-
-```json
-{
-  "user": {
-    "userId": "user_1234567890",
-    "email": "empleado@heladeria.com",
-    "tipo": "empleado",
-    "rol": "cajero",
-    "iat": 1234567890,
-    "exp": 1234654290
-  }
-}
-```
-
-**Response 401**
-
-```json
-{ "error": "Token inválido o expirado" }
-```
-
----
-
-## Cómo usar el sistema de autenticación
-
-### En el cliente (frontend)
-
-1. **Registro de Empleado**
-  ```typescript
-   const response = await fetch('/api/auth/empleados/register', {
-     method: 'POST',
-     headers: { 'Content-Type': 'application/json' },
-     body: JSON.stringify({
-       email: 'empleado@heladeria.com',
-       password: 'password123',
-       name: 'Juan Pérez',
-       rol: 'cajero'
-     })
-   });
-   const data = await response.json();
-   localStorage.setItem('token', data.token);
-   localStorage.setItem('user', JSON.stringify(data.user));
-  ```
-2. **Login de Cliente**
-  ```typescript
-   const response = await fetch('/api/auth/clientes/login', {
-     method: 'POST',
-     headers: { 'Content-Type': 'application/json' },
-     body: JSON.stringify({
-       email: 'cliente@email.com',
-       password: 'password123'
-     })
-   });
-   const data = await response.json();
-   localStorage.setItem('token', data.token);
-  ```
-3. **Obtener usuario actual**
-  ```typescript
-   const token = localStorage.getItem('token');
-   const response = await fetch('/api/auth/me', {
-     headers: { 'Authorization': `Bearer ${token}` }
-   });
-   const data = await response.json();
-   console.log(data.user);
-  ```
-
-### Rutas de UI
-
-- **Login Empleado**: `/empleados/login`
-- **Registro Empleado**: `/empleados/register`
-- **Login Cliente**: `/clientes/login`
-- **Registro Cliente**: `/clientes/register`
-
-### Seguridad
-
-- Las contraseñas se hashean con **bcryptjs** (10 rounds)
-- Los tokens JWT están configurados con expiración de **7 días**
-- El JWT_SECRET debe cambiarse en producción (ver archivo `.env`)
-- Todos los endpoints de autenticación validan entrada y manejan errores
-
----
-
-## POST `/api/auth/sign-out`
-
-Cierra la sesión activa. Invalida la cookie.
-
 **Response 200**
 
 ```json
 { "success": true }
 ```
+
+Detalle de rutas de login, cuentas demo y variables: [auth.md](./auth.md). Contrato machine-readable: [openapi.json](./openapi.json) (Swagger en `/api/docs`).
 
 ### GET `/api/auth/get-session`
 
@@ -751,7 +516,7 @@ Query params: `?fecha_inicio=2026-01-01`, `?fecha_fin=2026-12-31`
 
 ### POST `/api/ventas`
 
-Llama internamente a `registrar_venta()` dentro de un `BEGIN/COMMIT` explícito.
+Invoca el stored procedure `sp_registrar_venta` (parámetros IN/OUT) dentro de la transacción de `runWithDbRole` (`BEGIN`/`COMMIT`/`ROLLBACK` en Node si el `CALL` falla).
 El `user_id` se obtiene de la sesión activa de Better Auth — no se envía en el body.
 
 **Request body**
@@ -785,7 +550,7 @@ El `user_id` se obtiene de la sesión activa de Better Auth — no se envía en 
 
 ### DELETE `/api/ventas/:id`
 
-Anula la venta y restaura el stock (transacción explícita).
+Invoca `CALL sp_anular_venta(...)` dentro de `runWithDbRole`. Anula la venta y restaura el stock.
 
 **Response 200**
 
@@ -801,9 +566,42 @@ Anula la venta y restaura el stock (transacción explícita).
 
 ---
 
+## Instalación — `/api/setup`
+
+Rutas públicas para el asistente de primer arranque (`/setup` en la UI).
+
+### GET `/api/setup/status`
+
+Indica si hace falta crear el primer superadmin (`needsBootstrap`) y lista las cuentas demo del seed.
+
+**Response 200**
+
+```json
+{
+  "needsBootstrap": false,
+  "superadminCount": 1,
+  "demoAccounts": [
+    { "rol": "superadmin", "email": "superadmin@heladeria.com", "label": "Superadmin" }
+  ],
+  "demoPasswordHint": "secret"
+}
+```
+
+### POST `/api/setup/bootstrap`
+
+Crea el **primer** superadmin cuando `needsBootstrap` es `true`. Si ya existe alguno, responde **409**.
+
+**Request body:** `nombre`, `email`, `password` (mínimo 8 caracteres).
+
+---
+
 ## Empleados — `/api/empleados`
 
-Requiere permisos `staff:read` (GET) o `staff:write` (POST, PUT, DELETE): roles `admin` y `superadmin`. Ver [matriz de permisos](#permisos-por-rol).
+- **GET:** `staff:read` (`admin`, `superadmin`).
+- **POST:** `staff:invite` (**solo `superadmin`**).
+- **PUT/DELETE:** `staff:write` (`admin`, `superadmin`).
+
+Ver [matriz de permisos](#permisos-por-rol) y [auth.md](./auth.md).
 
 ### GET `/api/empleados`
 
@@ -833,7 +631,7 @@ Crea el usuario en Better Auth y el perfil en `empleados` en una sola operación
 {
   "nombre": "Nueva Cajera",
   "email": "nueva@heladeria.com",
-  "password": "secret123",
+  "password": "secret",
   "rol": "cajero"
 }
 ```
@@ -941,7 +739,7 @@ Usa `GROUP BY` + `HAVING`.
 
 ### GET `/api/reportes/clientes-frecuentes`
 
-Usa subquery — clientes con más de 3 compras.
+Invoca `fn_clientes_frecuentes()` en PostgreSQL (clientes con más de 3 compras completadas). La UI analista permite exportar CSV.
 
 **Response 200**
 
@@ -970,7 +768,9 @@ Usa subquery — clientes con más de 3 compras.
 
 ---
 
-## Notas de integración — Better Auth + Express sin ORM
+## Notas de integración — Better Auth y capa de datos
+
+La capa de acceso a datos del proyecto (**ORM** según el enunciado del curso) está en [`src/lib/db.ts`](../src/lib/db.ts): pool `pg`, consultas parametrizadas y stored procedures. Better Auth usa el mismo PostgreSQL para `"user"` / `session` / `account`.
 
 ```js
 // auth.js — configuración del servidor
@@ -978,10 +778,7 @@ import { betterAuth } from 'better-auth'
 import { Pool } from 'pg'
 
 const pool = new Pool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,      // proy2
-  password: process.env.DB_PASSWORD, // secret
-  database: process.env.DB_NAME,
+  connectionString: process.env.DATABASE_URL, // p. ej. proy3:secret@db:5432/icestock
 })
 
 export const auth = betterAuth({
@@ -1021,20 +818,20 @@ export function requirePermission(permission) {
 
 ---
 
-## Cobertura de rúbrica
+## Cobertura — Proyecto 3 (cc3088)
 
+| Criterio (rúbrica) | Cubierto por |
+| ------------------ | ------------ |
+| 5 roles PostgreSQL + `GRANT`/`REVOKE` | [`db/roles.sql`](../db/roles.sql), [roles-permisos.md](./roles-permisos.md) |
+| Esquema de roles documentado | [roles-permisos.md](./roles-permisos.md) |
+| Login/logout + usuario demo por rol | Better Auth + seed en `db/schema.sql`, [auth.md](./auth.md) |
+| UI protegida por rol | `useRequireRoles`, [role-routes.ts](../src/lib/auth/role-routes.ts) |
+| ≥ 5 stored procedures desde backend | `sp_registrar_venta`, `sp_anular_venta`, `fn_mis_compras`, `fn_catalogo_activo`, `fn_clientes_frecuentes` — [queries.md](./db/queries.md) |
+| SP con IN/OUT y excepciones | `sp_registrar_venta` |
+| ROLLBACK en SP | `sp_registrar_venta`, `sp_anular_venta` (bloque `EXCEPTION`; rollback de sesión en Node) |
+| ORM (`src/lib/db.ts`) en ≥ 3 CRUD | `/api/categorias`, `/api/productos`, `/api/clientes`, … |
+| Docker `compose up` + `proy3`/`secret` | [README.md](../README.md), [`.env.example`](../.env.example) |
 
-| Criterio cc3062 / cc3088             | Cubierto por                                                                    |
-| ------------------------------------ | ------------------------------------------------------------------------------- |
-| CRUD ≥ 2 entidades                   | `/api/productos`, `/api/clientes`, `/api/ventas`, `/api/categorias`             |
-| Endpoint de agregación               | `/api/reportes/ventas-del-dia`, `/api/reportes/stock-disponible`                |
-| Manejo de errores HTTP               | Todos los endpoints                                                             |
-| JOINs visibles en UI                 | `GET /api/ventas/:id`, `/api/reportes/*`                                        |
-| Subquery                             | `GET /api/reportes/clientes-frecuentes`                                         |
-| GROUP BY / HAVING                    | `GET /api/reportes/ventas-por-categoria`                                        |
-| CTE                                  | `GET /api/reportes/productos-mas-vendidos`                                      |
-| VIEW                                 | `GET /api/ventas` y `/api/reportes/ventas-del-dia` usan `vista_ventas_completa` |
-| Transacción explícita + ROLLBACK     | `POST /api/ventas`, `DELETE /api/ventas/:id`                                    |
-| Autenticación login/logout + Context | Better Auth — `/api/auth/sign-in/email`, `/api/auth/sign-out`                   |
+Herencia del Proyecto 2: CRUD, reportes, JOINs, vistas, CTEs — ver [queries.md](./db/queries.md).
 
 

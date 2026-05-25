@@ -2,11 +2,13 @@
   "openapi": "3.0.3",
   "info": {
     "title": "IceStock API",
-    "version": "1.1.0",
-    "description": "REST API alineada con `docs/endpoints.md`. Respuestas JSON bajo `/api`. Autenticación: sesión Better Auth (cookie `better-auth.session_token`). **Autorización:** matriz de permisos por `user.rol` (`cliente`, `cajero`, `analista`, `admin`, `superadmin`) — ver `docs/endpoints.md#permisos-por-rol` y extensiones `x-icestock-permission` en cada operación."
+    "version": "1.2.0",
+    "description": "REST API de IceStock (Proyecto 3). Respuestas JSON bajo `/api`.\n\n- **Documentación:** [docs/endpoints.md](./endpoints.md), [docs/auth.md](./auth.md), [docs/roles-permisos.md](./roles-permisos.md), [docs/db/queries.md](./db/queries.md)\n- **Autenticación:** Better Auth — cookie `better-auth.session_token` ([docs/auth.md](./auth.md))\n- **Autorización HTTP:** `user.rol` + extensiones `x-icestock-permission` / `x-icestock-roles` en cada operación\n- **Base de datos:** roles PostgreSQL (`db/roles.sql`), stored procedures (`sp_registrar_venta`, `sp_anular_venta`, `fn_*`) — [docs/db/queries.md](./db/queries.md)\n- **Capa de datos (ORM del curso):** [src/lib/db.ts](../src/lib/db.ts)\n- **Calificación Docker:** usuario DB `proy3`, contraseña `secret` (`.env.example`)"
   },
   "servers": [{ "url": "http://localhost:3000" }],
   "tags": [
+    { "name": "Auth", "description": "Better Auth en `/api/auth/*` (no invocar manualmente salvo integración)" },
+    { "name": "Setup", "description": "Primer superadmin y cuentas demo" },
     { "name": "Categorías" },
     { "name": "Productos" },
     { "name": "Proveedores" },
@@ -15,8 +17,7 @@
     { "name": "Empleados" },
     { "name": "Reportes" },
     { "name": "Meta" },
-    { "name": "Upload" },
-    { "name": "Permisos", "description": "Matriz rol → permiso HTTP (implementación: src/lib/api/permissions.ts)" }
+    { "name": "Upload" }
   ],
   "components": {
     "securitySchemes": {
@@ -107,6 +108,33 @@
           },
           "imagen_url": { "type": "string", "nullable": true, "description": "URL pública de la foto (p. ej. Cloudinary o CDN)" }
         }
+      },
+      "VentaItemIn": {
+        "type": "object",
+        "required": ["id_producto", "cantidad"],
+        "properties": {
+          "id_producto": { "$ref": "#/components/schemas/Uuid" },
+          "cantidad": { "type": "integer", "minimum": 1 }
+        }
+      },
+      "SetupStatus": {
+        "type": "object",
+        "properties": {
+          "needsBootstrap": { "type": "boolean" },
+          "superadminCount": { "type": "integer" },
+          "demoAccounts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "rol": { "$ref": "#/components/schemas/Rol" },
+                "email": { "type": "string", "format": "email" },
+                "label": { "type": "string" }
+              }
+            }
+          },
+          "demoPasswordHint": { "type": "string", "example": "secret" }
+        }
       }
     }
   },
@@ -122,6 +150,98 @@
         "security": [],
         "responses": {
           "200": { "description": "Payload con `data` agregada para UI tipo dashboard" }
+        }
+      }
+    },
+    "/api/auth/sign-in/email": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Iniciar sesión (Better Auth)",
+        "description": "Crea sesión y cookie. Contraseña demo del seed: `secret`. Ver [docs/auth.md](./auth.md).",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": { "type": "string", "format": "email", "example": "admin@heladeria.com" },
+                  "password": { "type": "string", "example": "secret" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Sesión creada (user + session)" },
+          "401": { "description": "Credenciales inválidas" }
+        }
+      }
+    },
+    "/api/auth/sign-out": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Cerrar sesión",
+        "security": [{ "betterAuthCookie": [] }],
+        "responses": { "200": { "description": "Sesión invalidada" } }
+      }
+    },
+    "/api/auth/get-session": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Sesión actual",
+        "security": [{ "betterAuthCookie": [] }],
+        "responses": {
+          "200": { "description": "user + session" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/setup/status": {
+      "get": {
+        "tags": ["Setup"],
+        "summary": "Estado de instalación y cuentas demo",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SetupStatus" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/setup/bootstrap": {
+      "post": {
+        "tags": ["Setup"],
+        "summary": "Crear primer superadmin",
+        "description": "Solo cuando `needsBootstrap` es true. Sin autenticación.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["nombre", "email", "password"],
+                "properties": {
+                  "nombre": { "type": "string" },
+                  "email": { "type": "string", "format": "email" },
+                  "password": { "type": "string", "minLength": 8 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Superadmin creado" },
+          "400": { "description": "Validación" },
+          "409": { "description": "Ya existe superadmin (BOOTSTRAP_DONE)" }
         }
       }
     },
@@ -201,7 +321,7 @@
       "get": {
         "tags": ["Productos"],
         "summary": "Listar productos (filtros opcionales)",
-        "description": "Sin sesión: catálogo activo (`catalog:read_public`). Con sesión: `catalog:read`. Filtros `stock_bajo` / `incluir_inactivos` requieren personal (`sales:read` o `catalog:write`).",
+        "description": "Sin sesión: catálogo activo (`fn_catalogo_activo` si no hay filtros staff). Con sesión: `catalog:read`. Filtros `stock_bajo` / `incluir_inactivos` requieren personal (`sales:read` o `catalog:write`).",
         "x-icestock-permission": "catalog:read_public",
         "security": [],
         "parameters": [
@@ -353,7 +473,8 @@
     "/api/clientes/me/ventas": {
       "get": {
         "tags": ["Clientes"],
-        "summary": "Historial de compras del cliente autenticado",
+        "summary": "Historial de compras (`fn_mis_compras`)",
+        "description": "Function almacenada en PostgreSQL; ver `getVentasByClienteId` en `src/lib/db.ts`.",
         "x-icestock-permission": "clients:me",
         "x-icestock-roles": ["cliente"],
         "responses": { "200": { "description": "OK" }, "403": { "$ref": "#/components/responses/Forbidden" } }
@@ -413,8 +534,8 @@
       },
       "post": {
         "tags": ["Ventas"],
-        "summary": "Registrar venta (transacción + stock)",
-        "description": "Permiso `sales:create_pos` (cajero, admin, superadmin) o `sales:create_self` (cliente). Con POS se vincula vendedor en servidor; compra en línea deja vendedor null.",
+        "summary": "Registrar venta (stored procedure + transacción)",
+        "description": "Invoca `CALL sp_registrar_venta(...)` vía `src/lib/db.ts` dentro de `runWithDbRole` (`BEGIN`/`COMMIT`/`ROLLBACK` en Node). Permiso `sales:create_pos` (cajero, admin, superadmin) o `sales:create_self` (cliente, superadmin). POS: vendedor en servidor; tienda: vendedor null.",
         "x-icestock-permission": "sales:create_pos | sales:create_self",
         "x-icestock-roles": ["cliente", "cajero", "admin", "superadmin"],
         "requestBody": {
@@ -448,7 +569,8 @@
       },
       "delete": {
         "tags": ["Ventas"],
-        "summary": "Anular venta y restaurar stock",
+        "summary": "Anular venta (`sp_anular_venta`) y restaurar stock",
+        "description": "Invoca `CALL sp_anular_venta(uuid)` vía `anularVentaTransaccional`.",
         "x-icestock-permission": "sales:void",
         "x-icestock-roles": ["admin", "superadmin"],
         "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "$ref": "#/components/schemas/Uuid" } }],
@@ -465,11 +587,28 @@
       },
       "post": {
         "tags": ["Empleados"],
-        "summary": "Alta empleado (user + account + fila Empleado)",
-        "description": "Permiso `staff:write`. Roles asignables: admin → cajero|admin; superadmin → cajero|analista|admin.",
-        "x-icestock-permission": "staff:write",
-        "x-icestock-roles": ["admin", "superadmin"],
-        "responses": { "201": { "description": "Creado" }, "400": { "description": "Email duplicado o rol no permitido" }, "403": { "$ref": "#/components/responses/Forbidden" } }
+        "summary": "Invitar empleado (user + account + Usuario)",
+        "description": "Solo **superadmin** (`staff:invite`). Roles asignables: `cajero`, `analista`, `admin`, `superadmin`. Admin no puede invitar.",
+        "x-icestock-permission": "staff:invite",
+        "x-icestock-roles": ["superadmin"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["nombre", "email", "password"],
+                "properties": {
+                  "nombre": { "type": "string" },
+                  "email": { "type": "string", "format": "email" },
+                  "password": { "type": "string", "minLength": 8 },
+                  "rol": { "$ref": "#/components/schemas/Rol", "description": "Opcional; default cajero" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Creado" }, "400": { "description": "Email duplicado o rol no permitido" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" } }
       }
     },
     "/api/empleados/{userId}": {
@@ -533,7 +672,8 @@
     "/api/reportes/clientes-frecuentes": {
       "get": {
         "tags": ["Reportes"],
-        "summary": "Clientes con >3 compras (subquery)",
+        "summary": "Clientes frecuentes (`fn_clientes_frecuentes`)",
+        "description": "Function almacenada; export CSV en UI analista.",
         "x-icestock-permission": "reports:read",
         "x-icestock-roles": ["analista", "admin", "superadmin"],
         "responses": { "200": { "description": "OK" }, "403": { "$ref": "#/components/responses/Forbidden" } }

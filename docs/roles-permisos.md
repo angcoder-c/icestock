@@ -9,6 +9,9 @@ El presente documento describe el modelo de autorización de **IceStock**: roles
 | Esquema de tablas | [`db/schema.sql`](../db/schema.sql) |
 | Roles y privilegios (`GRANT` / `REVOKE`) | [`db/roles.sql`](../db/roles.sql) |
 | Permisos de la API | [`src/lib/api/permissions.ts`](../src/lib/api/permissions.ts) |
+| Contrato OpenAPI / Swagger | [`docs/openapi.json`](./openapi.json), [`public/openapi.json`](../public/openapi.json), UI en `/api/docs` |
+| Autenticación | [`docs/auth.md`](./auth.md) |
+| Endpoints REST (detalle) | [`docs/endpoints.md`](./endpoints.md) |
 | Aplicación de rol PostgreSQL en Node | [`src/lib/db-role.ts`](../src/lib/db-role.ts) |
 | Envoltorio por petición HTTP | [`src/lib/api/with-db-role.ts`](../src/lib/api/with-db-role.ts) |
 | Rutas de la interfaz por rol | [`src/lib/auth/role-routes.ts`](../src/lib/auth/role-routes.ts) |
@@ -25,7 +28,7 @@ La seguridad se implementa en **dos capas complementarias**:
 1. **PostgreSQL** — privilegios definidos en `db/roles.sql` mediante `GRANT` y `REVOKE`.
 2. **Aplicación** — permisos simbólicos en `permissions.ts` y comprobaciones en los handlers de la API y en la interfaz.
 
-Además, el modelo de personas del negocio se unifica en la tabla **`Usuario`**, sustituyendo el esquema anterior con tablas separadas para clientes y empleados. La aplicación se conecta con el usuario `icestock_app` (o el definido en `DATABASE_URL`) y, en cada transacción de negocio, ejecuta `SET LOCAL ROLE` según el rol de la sesión activa.
+Además, el modelo de personas del negocio se unifica en la tabla **`Usuario`**, sustituyendo el esquema anterior con tablas separadas para clientes y empleados. En calificación y Docker, la conexión usa **`proy3`** / **`secret`** (`DATABASE_URL` en [`.env.example`](../.env.example)); el rol `icestock_app` sigue definido en `roles.sql` para despliegues que lo usen. En cada transacción de negocio la aplicación ejecuta `SET LOCAL ROLE` según el rol de la sesión activa.
 
 Los portales de la interfaz quedan acotados por rol: `/tienda`, `/empleado`, `/analista`, `/portal` y `/superadmin`.
 
@@ -39,7 +42,7 @@ Los portales de la interfaz quedan acotados por rol: `/tienda`, `/empleado`, `/a
 |----------------|-------------|
 | `icestock_app` | Usuario con el que la aplicación establece el pool de conexiones (`DATABASE_URL`). Dispone de `LOGIN`, no hereda roles de forma automática (`NOINHERIT`) y puede ejecutar `SET ROLE` hacia los roles de negocio por ser miembro de cada uno. |
 
-Las tablas de **Better Auth** (`"user"`, `session`, `account`, `verification`) conceden privilegios únicamente a `icestock_app` (y, en el entorno de curso, a los usuarios `proy2` / `proy3` en Docker). Los roles de negocio **no** acceden de forma directa a dichas tablas.
+Las tablas de **Better Auth** (`"user"`, `session`, `account`, `verification`) conceden privilegios únicamente a `icestock_app` (y, en el entorno de curso, al usuario `proy3` en Docker). Los roles de negocio **no** acceden de forma directa a dichas tablas.
 
 ### Roles de negocio (`NOLOGIN`)
 
@@ -60,8 +63,11 @@ La herencia en PostgreSQL permite que un administrador acumule, a nivel de privi
 Para escenarios en los que el rol no dispone de `SELECT` global (por ejemplo, el cliente sobre ventas ajenas), el esquema define:
 
 - `fn_mis_compras(usuario_id, limit)` — historial de compras del comprador.
-- `fn_catalogo_activo()` — catálogo de productos activos.
-- `registrar_venta(...)` — registro transaccional alternativo en PL/pgSQL.
+- `fn_catalogo_activo(limit)` — catálogo de productos activos con categoría y proveedor.
+- `sp_registrar_venta(...)` — procedure de venta (IN/OUT, excepciones; rollback de sesión si falla el `CALL`).
+- `sp_anular_venta(venta_id)` — procedure de anulación con parámetro `OUT p_anulada`.
+- `registrar_venta` / `anular_venta` — funciones wrapper sobre los procedures anteriores.
+- `fn_clientes_frecuentes()` — reporte de clientes frecuentes (más de 3 compras).
 
 ---
 
@@ -76,7 +82,7 @@ Tras revocar el acceso público (`REVOKE ALL ... FROM PUBLIC`) sobre las tablas 
 | `categoria`, `proveedor`, `producto` | `SELECT` |
 | `usuario` | `SELECT` |
 | `venta`, `detalleventa` | `INSERT`; `SELECT` en `detalleventa` |
-| Funciones | `EXECUTE` en `fn_catalogo_activo`, `fn_mis_compras`, `registrar_venta` |
+| Funciones / procedures | `EXECUTE` en `fn_catalogo_activo`, `fn_mis_compras`, `sp_registrar_venta`, `registrar_venta` (wrapper) |
 
 No dispone de `SELECT` libre sobre todas las filas de `venta`; el historial del comprador se obtiene mediante `fn_mis_compras`.
 
@@ -90,7 +96,7 @@ No dispone de `SELECT` libre sobre todas las filas de `venta`; el historial del 
 | Clientes de mostrador | `INSERT` en `usuario` |
 | Stock | `UPDATE (stock)` en `producto` |
 | Reportes | `SELECT` en `vista_ventas_completa` |
-| Funciones | `EXECUTE` en `registrar_venta` |
+| Funciones / procedures | `EXECUTE` en `sp_registrar_venta`, `registrar_venta`; `fn_catalogo_activo` (hereda admin) |
 
 ### `rol_analista` (lectura y reportes)
 
@@ -99,6 +105,7 @@ No dispone de `SELECT` libre sobre todas las filas de `venta`; el historial del 
 | `"user"` | `SELECT (id, name, email, rol)` |
 | Tablas de negocio | `SELECT` en `categoria`, `proveedor`, `producto`, `usuario`, `venta`, `detalleventa` |
 | Vistas | `SELECT` en `vista_ventas_completa`, `vista_metricas_empleado` |
+| Funciones | `EXECUTE` en `fn_clientes_frecuentes` |
 
 No dispone de `INSERT`, `UPDATE` ni `DELETE` sobre catálogo ni ventas.
 
@@ -109,6 +116,7 @@ No dispone de `INSERT`, `UPDATE` ni `DELETE` sobre catálogo ni ventas.
 | `"user"` | `SELECT`, `UPDATE` (el `INSERT` de cuentas lo realiza `icestock_app` en operaciones de autenticación) |
 | Catálogo | `INSERT`, `UPDATE`, `DELETE` en `categoria`, `proveedor`, `producto`, `usuario` |
 | Ventas | `UPDATE` en `venta`; `DELETE` en `detalleventa`; `UPDATE (stock)` en `producto` |
+| Funciones / procedures | `EXECUTE` en `sp_anular_venta`, `anular_venta`, `fn_clientes_frecuentes` |
 
 Hereda los privilegios de analista y cajero.
 
@@ -165,7 +173,9 @@ Para el contexto de normalización, véase [`docs/db/normalization.md`](./db/nor
 El módulo [`src/lib/pg-pool.ts`](../src/lib/pg-pool.ts) crea un pool con `DATABASE_URL` (o las variables `DB_*`). En entorno local se recomienda, por ejemplo:
 
 ```env
-DATABASE_URL=postgres://icestock_app:secret@localhost:5433/icestock
+# Calificación (Docker / host puerto 5433)
+DATABASE_URL=postgres://proy3:secret@localhost:5433/icestock
+# Alternativa documentada: postgres://icestock_app:secret@localhost:5433/icestock
 ```
 
 Docker aplica `db/schema.sql` y `db/roles.sql` en el primer arranque del contenedor con volumen vacío.
@@ -304,7 +314,7 @@ Incluye las capacidades del administrador y, además: invitación de personal (`
 ## Puesta en marcha del modelo de roles
 
 1. Levantar PostgreSQL: `docker compose up -d db` (aplica `schema.sql` y `roles.sql`).
-2. Configurar `DATABASE_URL` con el usuario `icestock_app` (véase [`.env.example`](../.env.example)).
+2. Copiar [`.env.example`](../.env.example) a `.env` (`proy3` / `secret`, `BETTER_AUTH_SECRET`).
 3. Si la base de datos ya existía antes de aplicar `roles.sql`, ejecutar dicho script manualmente como superusuario (por ejemplo `proy3` en el entorno de curso).
 4. Iniciar la aplicación y completar `/setup` o utilizar los usuarios del seed definidos en `db/schema.sql`.
 

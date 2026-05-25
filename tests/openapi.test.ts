@@ -18,6 +18,15 @@ describe('OpenAPI spec', () => {
     expect(paths).toContain('/api/clientes')
     expect(paths).toContain('/api/reportes/ventas-del-dia')
     expect(paths).toContain('/api/reportes/stock-disponible')
+    expect(paths).toContain('/api/reportes/clientes-frecuentes')
     expect(paths).toContain('/api/upload/imagen')
+    expect(paths).toContain('/api/setup/status')
+    expect(paths).toContain('/api/setup/bootstrap')
+    expect(paths).toContain('/api/auth/sign-in/email')
+
+    const empleadosPost = spec.paths['/api/empleados']?.post as {
+      'x-icestock-permission'?: string
+    }
+    expect(empleadosPost?.['x-icestock-permission']).toBe('staff:invite')
   })
 })

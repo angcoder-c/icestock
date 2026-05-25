@@ -1,6 +1,6 @@
 # Consultas SQL del proyecto IceStock
 
-Resumen de las operaciones sobre PostgreSQL usadas por la aplicación. El código fuente está centralizado en [`src/lib/db.ts`](../../src/lib/db.ts); el esquema y objetos de BD en [`db/schema.sql`](../../db/schema.sql).
+Resumen de las operaciones sobre PostgreSQL usadas por la aplicación. El código fuente está centralizado en [`src/lib/db.ts`](../../src/lib/db.ts) (capa **ORM** del Proyecto 3); el esquema y objetos de BD en [`db/schema.sql`](../../db/schema.sql).
 
 ## Diagramas del modelo
 
@@ -20,9 +20,13 @@ Resumen de las operaciones sobre PostgreSQL usadas por la aplicación. El códig
 |--------|------|-----|
 | `vista_ventas_completa` | VIEW | Reportes del día, listados desnormalizados para UI |
 | `vista_metricas_empleado` | VIEW | Totales por vendedor (admin / analista) |
-| `registrar_venta(...)` | FUNCTION | Registro transaccional (JSONB de ítems); `SECURITY DEFINER` |
-| `fn_mis_compras(uuid)` | FUNCTION | Historial del cliente (`rol_cliente`) |
-| `fn_catalogo_activo()` | FUNCTION | Catálogo activo para tienda |
+| `sp_registrar_venta(...)` | PROCEDURE | Registro transaccional: parámetros IN/OUT, bloque `EXCEPTION` (rollback de sesión vía `runWithDbRole`) |
+| `registrar_venta(...)` | FUNCTION | Wrapper que invoca `sp_registrar_venta` (compatibilidad SQL) |
+| `sp_anular_venta(uuid)` | PROCEDURE | Anulación con devolución de stock; `OUT p_anulada`, `ROLLBACK` en error |
+| `fn_mis_compras(uuid, limit)` | FUNCTION | Historial del comprador (`GET /api/clientes/me/ventas`) |
+| `fn_catalogo_activo(limit)` | FUNCTION | Catálogo activo con categoría y proveedor (listado sin filtros de staff) |
+| `anular_venta(uuid)` | FUNCTION | Anulación transaccional con devolución de stock |
+| `fn_clientes_frecuentes()` | FUNCTION | Reporte de clientes con más de 3 compras |
 | Índices en FK / `Venta.fecha` | INDEX | Filtros por fecha, joins y listados |
 
 ## Roles PostgreSQL (`db/roles.sql`)
@@ -50,9 +54,9 @@ Las tablas `user`, `session`, `account` y `Verification` las gestiona **Better A
 | Función | Operación | Tablas |
 |---------|-----------|--------|
 | `findUserByEmail` | `SELECT id FROM "user" WHERE LOWER(email) = …` | `user` |
-| `createUserAccountAndEmpleado` | `INSERT` en `user`, `account`, `Empleado` (transacción) | `user`, `account`, `Empleado` |
+| `createUserAccountAndEmpleado` | `INSERT` en `user`, `account`, `Usuario` (transacción) | `user`, `account`, `Usuario` |
 | `updateUserEmpleadoProfile` | `UPDATE "user" SET name, rol …` | `user` |
-| `deactivateEmpleadoByUserId` | `UPDATE Empleado SET activo = FALSE` | `Empleado` |
+| `deactivateEmpleadoByUserId` | `UPDATE Usuario SET activo = FALSE` | `Usuario` |
 
 ---
 
@@ -73,7 +77,7 @@ CRUD estándar: `INSERT` / `SELECT` / `UPDATE` / `DELETE` por `id` (UUID).
 
 | Función | Descripción SQL |
 |---------|-----------------|
-| `getProductosListApi` | `SELECT` con `JOIN Categoria`, `Proveedor`; filtros `activo`, `id_categoria`, `ILIKE` nombre, `stock < 20` |
+| `getProductosListApi` | Sin filtros staff: `fn_catalogo_activo`; con filtros: `JOIN` categoría/proveedor, `stock < 20`, etc. |
 | `getProductoEnriquecido` | Detalle con nombres de categoría y proveedor |
 | `createProducto` / `updateProducto` / `deleteProducto` | CRUD sobre `Producto` |
 | `softDeleteProducto` | `UPDATE Producto SET activo = FALSE` |
@@ -90,7 +94,7 @@ CRUD estándar: `INSERT` / `SELECT` / `UPDATE` / `DELETE` por `id` (UUID).
 | `getClienteConStats` | Cliente + `COUNT`/`SUM` de ventas completadas |
 | `getVentasByClienteId` | Historial para **Mis compras** (`GET /api/clientes/me/ventas`) |
 | `getClientesConCompraMayorA` | Subconsulta `Venta.total >= $monto` |
-| `getClientesFrecuentesApi` | Clientes con más de 3 compras completadas |
+| `getClientesFrecuentesApi` | `SELECT * FROM fn_clientes_frecuentes()` |
 
 ---
 
@@ -98,9 +102,9 @@ CRUD estándar: `INSERT` / `SELECT` / `UPDATE` / `DELETE` por `id` (UUID).
 
 | Función | Descripción |
 |---------|-------------|
-| `getEmpleados`, `getEmpleado`, `createEmpleado`, `updateEmpleado`, `deleteEmpleado` | CRUD + join con `user` |
-| `getEmpleadoByUserId` | Resuelve empleado desde sesión |
-| `getOrCreateEmpleadoForUser` | Crea fila `Empleado` si admin/cajero aún no la tiene (POS) |
+| `getEmpleados`, `getEmpleado`, `createEmpleado`, `updateEmpleado`, `deleteEmpleado` | Personal (`Usuario` con `user_id`) + join con `user` |
+| `getEmpleadoByUserId` | Resuelve fila `Usuario` desde sesión |
+| `getOrCreateEmpleadoForUser` | Crea fila `Usuario` si cajero/admin aún no la tiene (POS) |
 
 ---
 
@@ -108,22 +112,21 @@ CRUD estándar: `INSERT` / `SELECT` / `UPDATE` / `DELETE` por `id` (UUID).
 
 ### `crearVentaTransaccional` (usado por `POST /api/ventas`)
 
-Transacción en Node (`BEGIN` / `COMMIT` / `ROLLBACK`):
+La aplicación delega en el stored procedure (dentro de la transacción de `runWithDbRole`):
 
-1. Por cada ítem: `SELECT … FROM Producto … FOR UPDATE` (stock y precio).
-2. `INSERT INTO Venta` (`id_cliente`, `user_id`, `empleado_id`, `total = 0`).
-3. Por cada ítem: `INSERT DetalleVenta`, `UPDATE Producto SET stock = stock - cantidad`.
-4. `UPDATE Venta SET total = …`.
+```sql
+CALL sp_registrar_venta($userId, $idComprador, $idVendedor, $items::jsonb, NULL, NULL);
+```
 
-Equivalente conceptual en SQL: función `registrar_venta(p_userId, p_idCliente, p_empleadoId, p_items JSONB)`.
+El procedure valida stock con `FOR UPDATE`, inserta venta y detalle, devuelve `OUT p_venta_id` y `OUT p_total`, y ante error relanza la excepción (el bloque PL/pgSQL revierte sus cambios; la sesión hace `ROLLBACK` en `runWithDbRole`).
 
 ### Consultas de ventas
 
 | Función | Descripción |
 |---------|-------------|
-| `getVentasListApi` | Listado con `LEFT JOIN Cliente`, `Empleado`, `user`; filtro opcional por rango de fechas |
+| `getVentasListApi` | Listado con `LEFT JOIN Usuario` (comprador/vendedor); filtro opcional por fechas |
 | `getVentaDetalleApi` | Cabecera + líneas con nombre de producto |
-| `anularVentaTransaccional` | `FOR UPDATE` venta; devuelve stock; `estado = 'anulada'` |
+| `anularVentaTransaccional` | `CALL sp_anular_venta($id, NULL)` |
 | `getVentasDesdeVista` | `SELECT` desde `vista_ventas_completa` |
 | `getVentasConClienteYEmpleado` | Agregación `COUNT` líneas por venta |
 
@@ -154,7 +157,7 @@ Equivalente conceptual en SQL: función `registrar_venta(p_userId, p_idCliente, 
 
 | Patrón | Ejemplo en el proyecto |
 |--------|-------------------------|
-| Transacción explícita | `crearVentaTransaccional`, `anularVentaTransaccional`, `createUserAccountAndEmpleado` |
+| Transacción explícita | `crearVentaTransaccional` y `anularVentaTransaccional` (envuelven funciones almacenadas), `createUserAccountAndEmpleado` |
 | Bloqueo de fila | `SELECT … FOR UPDATE` en producto (stock) y venta (anulación) |
 | Precio histórico | `DetalleVenta.precio_unit` al insertar; no se recalcula si cambia `Producto.precio` |
 | Soft delete | `Producto.activo = FALSE` |
@@ -168,7 +171,8 @@ Equivalente conceptual en SQL: función `registrar_venta(p_userId, p_idCliente, 
 | Capa | Ubicación |
 |------|-----------|
 | Handlers REST | `src/routes/api/**/*.ts` |
-| Acceso a datos | `src/lib/db.ts` |
-| Contrato documentado | [../endpoints.md](../endpoints.md), [../openapi.json](../openapi.json), Swagger en `/api/docs` |
+| Acceso a datos (ORM) | `src/lib/db.ts` |
+| Contrato HTTP | [../endpoints.md](../endpoints.md) |
+| OpenAPI / Swagger | [../openapi.json](../openapi.json) → `/openapi.json`, UI `/api/docs` |
 
 Para el proceso de diseño de tablas, ver [normalization.md](./normalization.md).
