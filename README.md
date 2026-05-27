@@ -69,16 +69,14 @@ docker compose up
 
 Variables de calificación en `.env.example`: usuario DB **proy3**, contraseña **secret**. Copiar a `.env` y definir `BETTER_AUTH_SECRET` (en `.env` de desarrollo puede ir un valor de ejemplo). Opcional: `CLOUDINARY_URL` para imágenes.
 
-**Error `role "proy3" does not exist`:** el volumen `pg_data` se creó con otro usuario. Recrear la base:
+**Error `role "proy3" does not exist`:** se debe a que el volumen `pg_data` se creó con otro usuario. Recrear la base:
 
 ```bash
 docker compose down -v
 docker compose up
 ```
 
-(`-v` borra el volumen; solo en desarrollo.)
-
-**Error `role "rol_cliente" does not exist`:** el init no terminó (volumen a medias). Misma solución: `docker compose down -v && docker compose up`. Si la BD ya tiene tablas pero faltan roles: `docker compose exec -T db psql -U proy3 -d icestock -f /docker-entrypoint-initdb.d/02-roles.sql`
+(`-v` borra el volumen.)
 
 ---
 
@@ -90,21 +88,6 @@ npm run dev
 ```
 
 Puerto por defecto: **3000**. OpenAPI estático: `/openapi.json`.
-
----
-
-## Scripts
-
-
-| Comando             | Descripción                        |
-| ------------------- | ---------------------------------- |
-| `npm run dev`       | Desarrollo (Vite + TanStack Start) |
-| `npm run build`     | Build cliente y servidor           |
-| `npm run preview`   | Vista previa del build             |
-| `npm run lint`      | ESLint                             |
-| `npm test`          | Vitest                             |
-| `npm run test:jest` | Jest (OpenAPI, HTTP, UI)           |
-
 
 ---
 
