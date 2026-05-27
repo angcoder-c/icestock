@@ -123,12 +123,6 @@ Puerto por defecto: **3000**. OpenAPI estático: `/openapi.json`.
 
 ---
 
-## Despliegue
-
-Compilar con `npm run build` y desplegar con las mismas variables de `.env.example`. Configuración opcional Cloudflare Workers (`wrangler`).
-
----
-
 ## Licencia
 
 MIT
