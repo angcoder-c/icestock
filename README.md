@@ -58,6 +58,10 @@ El flujo de negocio va por **API REST con respuestas JSON**; el navegador es un 
 
 ## Puesta en marcha con Docker
 
+<img width="800" height="450" alt="running" src="https://github.com/user-attachments/assets/b952dc7f-ea78-4430-bd52-097d16fb6cc1" />
+
+https://github.com/user-attachments/assets/198fb8da-bc9d-433b-ab26-e2c5a298ae4f
+
 ```bash
 cp .env.example .env
 docker compose up
